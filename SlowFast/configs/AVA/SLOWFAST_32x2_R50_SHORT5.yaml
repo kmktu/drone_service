@@ -1,0 +1,94 @@
+TRAIN:
+  ENABLE: False
+  DATASET: ava
+  BATCH_SIZE: 4 #64
+  EVAL_PERIOD: 5
+  CHECKPOINT_PERIOD: 1
+  AUTO_RESUME: True
+  CHECKPOINT_FILE_PATH: '../drone_service/SlowFast/configs/AVA/c2/SLOWFAST_32x2_R101_50_50.pkl'  #path to pretrain model
+#  CHECKPOINT_FILE_PATH: '../configs/AVA/c2/SLOWFAST_32x2_R101_50_50.pkl'  #path to pretrain model
+  CHECKPOINT_TYPE: caffe2
+DATA:
+  NUM_FRAMES: 16 #32
+  SAMPLING_RATE: 2
+  TRAIN_JITTER_SCALES: [256, 320]
+  TRAIN_CROP_SIZE: 224
+  TEST_CROP_SIZE: 224
+  INPUT_CHANNEL_NUM: [3, 3]
+  PATH_TO_DATA_DIR: 'C:/Users/abc/SlowFast-main/data/custom_data/inter'
+DETECTION:
+  ENABLE: True
+  ALIGNED: True
+AVA:
+  FRAME_DIR: 'C:/Users/abc/SlowFast-main/data/custom_data/inter/frames'
+  FRAME_LIST_DIR: 'C:/Users/abc/SlowFast-main/data/custom_data/inter/frame_lists'
+  ANNOTATION_DIR: 'C:/Users/abc/SlowFast-main/data/custom_data/inter/annotations/total'
+  DETECTION_SCORE_THRESH: 0.8
+  TRAIN_PREDICT_BOX_LISTS: [
+    'C:/Users/abc/SlowFast-main/data/custom_data/inter/annotations/total/ava_train_v2.2.csv',
+    'C:/Users/abc/SlowFast-main/data/custom_data/inter/annotations/total/ava_detection_train_boxes_and_labels_include_negative_v2.2.csv',
+  ]
+  TEST_PREDICT_BOX_LISTS: ['C:/Users/abc/SlowFast-main/data/custom_data/inter/annotations/total/ava_detection_val_boxes_and_labels.csv']
+  
+  
+SLOWFAST:
+  ALPHA: 4
+  BETA_INV: 8
+  FUSION_CONV_CHANNEL_RATIO: 2
+  FUSION_KERNEL_SZ: 7
+RESNET:
+  ZERO_INIT_FINAL_BN: True
+  WIDTH_PER_GROUP: 64
+  NUM_GROUPS: 1
+  DEPTH: 50
+  TRANS_FUNC: bottleneck_transform
+  STRIDE_1X1: False
+  NUM_BLOCK_TEMP_KERNEL: [[3, 3], [4, 4], [6, 6], [3, 3]]
+  SPATIAL_DILATIONS: [[1, 1], [1, 1], [1, 1], [2, 2]]
+  SPATIAL_STRIDES: [[1, 1], [2, 2], [2, 2], [1, 1]]
+NONLOCAL:
+  LOCATION: [[[], []], [[], []], [[], []], [[], []]]
+  GROUP: [[1, 1], [1, 1], [1, 1], [1, 1]]
+  INSTANTIATION: dot_product
+  POOL: [[[1, 2, 2], [1, 2, 2]], [[1, 2, 2], [1, 2, 2]], [[1, 2, 2], [1, 2, 2]], [[1, 2, 2], [1, 2, 2]]]
+BN:
+  USE_PRECISE_STATS: False
+  NUM_BATCHES_PRECISE: 200
+SOLVER:
+  BASE_LR: 0.1
+  LR_POLICY: steps_with_relative_lrs
+  STEPS: [0, 10, 15, 20]
+  LRS: [1, 0.1, 0.01, 0.001]
+  MAX_EPOCH: 100
+  MOMENTUM: 0.9
+  WEIGHT_DECAY: 1e-7
+  WARMUP_EPOCHS: 5.0
+  WARMUP_START_LR: 0.000125
+  OPTIMIZING_METHOD: sgd
+MODEL:
+  NUM_CLASSES: 12
+  ARCH: slowfast
+  MODEL_NAME: SlowFast
+  LOSS_FUNC: bce
+  DROPOUT_RATE: 0.5
+  HEAD_ACT: sigmoid
+TEST:
+  ENABLE: False
+  DATASET: ava
+  BATCH_SIZE: 8 # 4
+DATA_LOADER:
+  NUM_WORKERS: 4 # 2
+  PIN_MEMORY: True
+NUM_GPUS: 1
+NUM_SHARDS: 1
+RNG_SEED: 0
+OUTPUT_DIR: .
+
+DEMO:
+  ENABLE: True
+  LABEL_FILE_PATH: "../drone_service/SlowFast/DEMO_TEST/ava2.json"
+#  LABEL_FILE_PATH: "../DEMO_TEST/ava2.json"
+#  INPUT_VIDEO: "D:/drone/2022-12-01_14-29_myongji_45_20_cloud_afternoon.mp4"
+#  OUTPUT_FILE: "D:/drone/demo_test.mp4"
+  DETECTRON2_WEIGHTS: "../drone_service/SlowFast/DEMO_TEST/model_final_280758.pkl"
+#  DETECTRON2_WEIGHTS: "../DEMO_TEST/model_final_280758.pkl"
