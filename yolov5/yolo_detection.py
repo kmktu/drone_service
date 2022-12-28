@@ -107,7 +107,8 @@ class ObjectDetection():
                     self.annotator.box_label(xyxy, label, color=colors(c, True))
 
             self.im0 = self.annotator.result()
-        self.queue.put((self.im0, self.label_count))  # 이미지와 클래스 개수를 tuple로 묶어 put
+        # self.queue.put((self.im0, self.label_count))  # 이미지와 클래스 개수를 tuple로 묶어 put
+        self.queue.put(self.im0)
 
     # @pyqtSlot(np.ndarray)
     def thread_job(self, frame):

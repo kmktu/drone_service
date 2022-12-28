@@ -109,7 +109,7 @@ class Predictor:
                 bboxes = bboxes.detach().cpu()
 
         preds = preds.detach()
-        print("preds : ", preds)
+
         task.add_action_preds(preds)
         if bboxes is not None:
             task.add_bboxes(bboxes[:, 1:])
