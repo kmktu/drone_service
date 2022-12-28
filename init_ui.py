@@ -170,8 +170,7 @@ class init_layout(QWidget):
                 self.detected_video.setImage(detect_frame)
                 detect_count = detect_result[1]  # detect_q 중 라벨 수 dict
                 self.cls_count(detect_count)
-                # time.sleep(0.05)
-
+                time.sleep(0.05)
             else:
                 continue
 
@@ -181,14 +180,21 @@ class init_layout(QWidget):
         while True:
             if self.action_detect_q.qsize() > 0:
                 action_detect_q_flag = True
-                recognize_frame = self.action_detect_q.get()
-                recognize_frame = self.convert_cv_qt(recognize_frame)
+                self.recognize_frame = self.action_detect_q.get()
+                if type(self.recognize_frame) == dict:
+                    ## 행동 confidence 값
+                    # 이거 이용해서 count된 값 보여주면 될듯
+                    frame_confidence = self.recognize_frame
+                else:
+                    self.recognize_frame = self.convert_cv_qt(self.recognize_frame)
+
             elif self.action_detect_q.qsize() == 0:
                 action_detect_q_flag = False
 
             if action_detect_q_flag:
-                self.recognize_video.setImage(recognize_frame)
-                time.sleep(0.05)
+                if type(self.recognize_frame) != dict:
+                    self.recognize_video.setImage(self.recognize_frame)
+                    # time.sleep(0.05)
             else:
                 continue
 

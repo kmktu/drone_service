@@ -212,7 +212,6 @@ class AsyncVis:
             # print("idx : ", idx)
             if idx == get_idx:
                 del self.get_indices_ls[0]
-                print("_visworker get end")
                 return res
             self.result_data[idx] = res
 
