@@ -38,17 +38,7 @@ def slowfast_read_frames(frame_q, action_detect_q, video_path):
         # frame_q.put(frame)
         frames_list.append(frame)
         if len(frames_list) == inference_model_slowfast.seq_length:
-            print("put_frame")
-            # inference_model_slowfast.run_model(frames_list)
-            # for frame in task.frames[task.num_buffer_frames :]:
-            #     action_detect_q.put(frame)
             for task in inference_model_slowfast.run_model(frames_list):
                 for frame in task.frames[task.num_buffer_frames :]:
                     action_detect_q.put(frame)
-
-                    # time.sleep(1 / inference_model_slowfast.output_fps)
-
-            # for i in range(len(frames_list)):
-            #     inference_slowfast_img = inference_model_slowfast.get_data()
-            #     action_detect_q.put(inference_slowfast_img)
             frames_list.clear()
