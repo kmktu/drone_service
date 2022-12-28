@@ -171,6 +171,7 @@ class init_layout(QWidget):
                 detect_count = detect_result[1]  # detect_q 중 라벨 수 dict
                 self.cls_count(detect_count)
                 time.sleep(0.05)
+                print("!")
             else:
                 continue
 
