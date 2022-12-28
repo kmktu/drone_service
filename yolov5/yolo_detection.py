@@ -94,10 +94,10 @@ class ObjectDetection():
                 for *xyxy, conf, cls in reversed(det):
                     c = int(cls.item())
                     bbox = list(int(v.item()) for v in xyxy)
-                    self.label_count[f'{self.names[c]}'] += 1  # 클래스 카운트
                     # LOGGER.info(f"{colorstr('bold', self.names[c].ljust(15))}"
                     #             f"{colorstr('bold', str(conf.item()).ljust(20))}"
                     #             f"{colorstr('bold', str(bbox).ljust(30))}")
+                    self.label_count[f'{self.names[c]}'] += 1  # 클래스 카운트
 
                     # label = None if self.hide_labels else (self.names[c] if self.hide_conf else f'{conf:.2f}')
                     # if self.hide_labels:
@@ -113,7 +113,7 @@ class ObjectDetection():
     # @pyqtSlot(np.ndarray)
     def thread_job(self, frame):
         while True:
-            t = threading.Thread(target=self.inference_img, args=(frame))
+            t = threading.Thread(target=self.inference_img, args=(frame, ))
             t.start()
 
     def get_data(self):

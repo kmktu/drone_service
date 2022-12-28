@@ -163,13 +163,12 @@ class init_layout(QWidget):
                 frame = self.convert_cv_qt(frame)
 
                 detect_frame = self.detect_q.get()
-                # detect_frame = self.convert_cv_qt(detect_frame[0])  # detect_q 중 frame
-                # detect_count = detect_frame[1]  # detect_q 중 라벨 수 dict
-                detect_frame = self.convert_cv_qt(detect_frame)  # detect_q 중 frame
+                detect_frame = self.convert_cv_qt(detect_frame[0])  # detect_q 중 frame
+                detect_count = detect_frame[1]  # detect_q 중 라벨 수 dict
 
                 self.original_video.setImage(frame)
                 self.detected_video.setImage(detect_frame)
-                # self.cls_count(detect_count)
+                self.cls_count(detect_count)
                 # time.sleep(0.05)
 
             else:
