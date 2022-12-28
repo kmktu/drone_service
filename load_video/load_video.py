@@ -29,9 +29,22 @@ def slowfast_read_frames(frame_q, action_detect_q, video_path):
     inference_model_slowfast = SlowFastDetection()
     inference_model_slowfast.video_path_input(reader, video_path)
     class_names_path = inference_model_slowfast.cfg.DEMO.LABEL_FILE_PATH
+    common_class_thres = inference_model_slowfast.cfg.DEMO.COMMON_CLASS_THRES
+    uncommon_class_thres = inference_model_slowfast.cfg.DEMO.UNCOMMON_CLASS_THRES
+    common_class_names = inference_model_slowfast.cfg.DEMO.COMMON_CLASS_NAMES
 
     class_names, _, _ = get_class_names(class_names_path, None, None)
-    print("action_class_names : ", class_names)
+    class_names_dict = {}   # 클래스 이름별 탐지 결과 저장
+
+    # for i in range(len(class_names)):
+    #     if class_names[i] != None:
+    #         class_names_dict[class_names[i]] = 0
+    #         class_names_count_dict[i] = class_names[i]
+    #     # if names != None:
+    #     #     class_names_dict[names] = 0
+    #     #     class_names_count_dict[i] = names
+    # print("class_names_dics", class_names_dict)
+    # print("class_names_count_dict", class_names_count_dict)
 
     frames_list = []
 
@@ -46,8 +59,14 @@ def slowfast_read_frames(frame_q, action_detect_q, video_path):
             for task in inference_model_slowfast.run_model(frames_list):
 
                 action_confidence_list = task.action_preds.tolist()
-                print(action_confidence_list)
+                # action_confidence_list length => 12 => index start 0
+                # class_names => length => 13 => index start 1, first index value is None
+                # 클래스별 컨피던스 값
+                for i, class_name in enumerate(class_names):
+                    if class_name != None:
+                        class_names_dict[class_name] = action_confidence_list[0][i-1]
 
                 for frame in task.frames[task.num_buffer_frames :]:
                     action_detect_q.put(frame)
+                action_detect_q.put(class_names_dict)
             frames_list.clear()
