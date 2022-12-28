@@ -154,8 +154,6 @@ class SlowFastDetection():
                 get_flag = True
                 num_task -= 1
                 yield task
-                # for frame in task.frames[task.num_buffer_frames:]:
-                #     self.queue.put(frame)
                 if get_flag:
                     print("get success")
                     break
@@ -180,30 +178,3 @@ class SlowFastDetection():
             frameSize=(self.display_width, self.display_height),
             isColor=True,
         )
-
-    # def inference_img(self):
-    #     self.id += 1
-    #     task = TaskInfo()
-    #
-    #     # task.img_height = self.display_height
-    #     # task.img_width = self.display_width
-    #
-    #
-    #     frames = []
-    #     if len(self.buffer) != 0:
-    #         frames = self.buffer
-    #
-    #     was_read = True
-    #     while was_read and len(
-    #             frames) < self.seq_length:  # self.seq_length ==> 64 (yaml 파일 안 DATA.NUM_FRAMES * DATA.SAMPLING_RATE)
-    #         was_read, frame = self.cap.read()
-    #         frames.append(frame)
-    #
-    #     if was_read and self.buffer_size != 0:
-    #         self.buffer = frames[-self.buffer_size:]
-    #
-    #     task.add_frames(self.id, frames)
-    #     task.num_buffer_frames = 0 if self.id == 0 else self.buffer_size
-    #
-    #     return was_read, task
-
