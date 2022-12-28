@@ -4,6 +4,7 @@ import sys, os
 import numpy as np
 import threading
 from queue import Queue
+from collections import defaultdict
 sys.path.append("..")
 
 FILE = Path(__file__).resolve()
@@ -78,6 +79,7 @@ class ObjectDetection():
             seen += 1
 
             self.im0 = img_to_infer.copy()
+            self.label_count = defaultdict(int)  # 라벨 카운트 딕셔너리 생성
 
             # gn = torch.tensor(self.im0.shape)[[1, 0, 1, 0]]
 
@@ -90,12 +92,13 @@ class ObjectDetection():
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], self.im0.shape).round()
 
                 for *xyxy, conf, cls in reversed(det):
+                    c = int(cls.item())
                     bbox = list(int(v.item()) for v in xyxy)
-                    # LOGGER.info(f"{colorstr('bold', self.names[int(cls.item())].ljust(15))}"
+                    self.label_count[f'{self.names[c]}'] += 1  # 클래스 카운트
+                    # LOGGER.info(f"{colorstr('bold', self.names[c].ljust(15))}"
                     #             f"{colorstr('bold', str(conf.item()).ljust(20))}"
                     #             f"{colorstr('bold', str(bbox).ljust(30))}")
 
-                    c = int(cls.item())
                     # label = None if self.hide_labels else (self.names[c] if self.hide_conf else f'{conf:.2f}')
                     # if self.hide_labels:
                     #     print("label : ", self.names[c], self.hide_labels)
@@ -104,7 +107,7 @@ class ObjectDetection():
                     self.annotator.box_label(xyxy, label, color=colors(c, True))
 
             self.im0 = self.annotator.result()
-        self.queue.put(self.im0)
+        self.queue.put((self.im0, self.label_count))  # 이미지와 클래스 개수를 tuple로 묶어 put
 
     # @pyqtSlot(np.ndarray)
     def thread_job(self, frame):
