@@ -145,14 +145,17 @@ class init_layout(QWidget):
         # detect_count_dict에 포함된 Object 개수 더하기
         total_obj_cnt = int(total_object_count.text())
         total_act_cnt = int(total_action_count.text())
-        for cls, value in detect_count_dict.items():
-            cnt = int(eval(f'{cls_dict[cls]}.text()'))
-            cnt += value
-            eval(f"{cls_dict[cls]}.setText(f'{{cnt}}')")
-            if cls in objects:
-                total_obj_cnt += value
-            elif cls in actions:
-                total_act_cnt += value
+        try:
+            for cls, value in detect_count_dict.items():
+                cnt = int(eval(f'{cls_dict[cls]}.text()'))
+                cnt += value
+                eval(f"{cls_dict[cls]}.setText(f'{{cnt}}')")
+                if cls in objects:
+                    total_obj_cnt += value
+                elif cls in actions:
+                    total_act_cnt += value
+        except KeyError:
+            pass
         total_object_count.setText(f'{total_obj_cnt}')
         total_action_count.setText(f'{total_act_cnt}')
 
@@ -161,13 +164,11 @@ class init_layout(QWidget):
             if self.frame_q.qsize() > 0 and self.video_play: # 영상이 재생 중이며 frame_q에 frame이 하나 이상 존재할 때 가시화
                 frame = self.frame_q.get()
                 frame = self.convert_cv_qt(frame)
-
-                detect_frame = self.detect_q.get()
-                detect_frame = self.convert_cv_qt(detect_frame[0])  # detect_q 중 frame
-                detect_count = detect_frame[1]  # detect_q 중 라벨 수 dict
-
+                detect_result = self.detect_q.get()
+                detect_frame = self.convert_cv_qt(detect_result[0])  # detect_q 중 frame
                 self.original_video.setImage(frame)
                 self.detected_video.setImage(detect_frame)
+                detect_count = detect_result[1]  # detect_q 중 라벨 수 dict
                 self.cls_count(detect_count)
                 # time.sleep(0.05)
 
