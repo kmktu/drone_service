@@ -126,6 +126,36 @@ class init_layout(QWidget):
             self.frame_reader_p2.terminate()
         print("stop")
 
+    def cls_count(self, detect_count_dict: dict):  # Object Count 갱신 함수
+        # 클래스 정의 (리소스 낭비로 인해 이 위치 외에 옮길 좋은 위치 필요)
+        cls_dict = {'car': 'car_count', 'person': 'person_count', 'boat': 'boat_count',
+                    'sos': 'sos_count', 'fall_down': 'fall_down_count'}
+        actions = ['sos', 'fall_down']
+        objects = ['car', 'person', 'boat']
+
+        # 최신 개수 받아오기
+        total_object_count = self.camera_object_groupbox_widget.findChild(QLabel, 'total_object_count')
+        person_count = self.camera_object_groupbox_widget.findChild(QLabel, 'person_count')
+        car_count = self.camera_object_groupbox_widget.findChild(QLabel, 'car_count')
+        boat_count = self.camera_object_groupbox_widget.findChild(QLabel, 'boat_count')
+        total_action_count = self.camera_action_groupbox_widget.findChild(QLabel, 'total_action_count')
+        sos_count = self.camera_action_groupbox_widget.findChild(QLabel, 'sos_count')
+        fall_down_count = self.camera_action_groupbox_widget.findChild(QLabel, 'fall_down_count')
+
+        # detect_count_dict에 포함된 Object 개수 더하기
+        total_obj_cnt = int(total_object_count.text())
+        total_act_cnt = int(total_action_count.text())
+        for cls, value in detect_count_dict.items():
+            cnt = int(eval(f'{cls_dict[cls]}.text()'))
+            cnt += value
+            eval(f"{cls_dict[cls]}.setText(f'{{cnt}}')")
+            if cls in objects:
+                total_obj_cnt += value
+            elif cls in actions:
+                total_act_cnt += value
+        total_object_count.setText(f'{total_obj_cnt}')
+        total_action_count.setText(f'{total_act_cnt}')
+
     def visual_process(self): # 영상 가시화 함수
         while True:
             if self.frame_q.qsize() > 0 and self.video_play: # 영상이 재생 중이며 frame_q에 frame이 하나 이상 존재할 때 가시화
@@ -133,10 +163,12 @@ class init_layout(QWidget):
                 frame = self.convert_cv_qt(frame)
 
                 detect_frame = self.detect_q.get()
-                detect_frame = self.convert_cv_qt(detect_frame)
+                detect_frame = self.convert_cv_qt(detect_frame[0])  # detect_q 중 frame
+                detect_count = detect_frame[1]  # detect_q 중 라벨 수 dict
 
                 self.original_video.setImage(frame)
                 self.detected_video.setImage(detect_frame)
+                self.cls_count(detect_count)
                 # time.sleep(0.05)
 
             else:
