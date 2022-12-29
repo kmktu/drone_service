@@ -141,8 +141,6 @@ class init_layout(QWidget):
 
     def cls_count(self, detect_count_dict: dict):  # Object Count 갱신 함수
         # 클래스 정의 (리소스 낭비로 인해 이 위치 외에 옮길 좋은 위치 필요)
-        cls_dict = {'car': 'car_count', 'person': 'person_count', 'boat': 'boat_count',
-                    'sos': 'sos_count', 'fall_down': 'fall_down_count'}
         actions = ['sos', 'fall_down']
         objects = ['car', 'person', 'boat']
 
@@ -158,17 +156,16 @@ class init_layout(QWidget):
         # detect_count_dict에 포함된 Object 개수 더하기
         total_obj_cnt = int(total_object_count.text())
         total_act_cnt = int(total_action_count.text())
-        try:
-            for cls, value in detect_count_dict.items():
-                cnt = int(eval(f'{cls_dict[cls]}.text()'))
-                cnt += value
-                eval(f"{cls_dict[cls]}.setText(f'{{cnt}}')")
+        for cls, value in detect_count_dict.items():
+            if cls in actions or cls in objects:
+                cnt = int(eval(f'{cls}_count.text()'))
                 if cls in objects:
+                    cnt += value
                     total_obj_cnt += value
-                elif cls in actions:
-                    total_act_cnt += value
-        except KeyError:
-            pass
+                else:
+                    cnt += 1
+                    total_act_cnt += 1
+                eval(f"{cls}_count.setText(f'{{cnt}}')")
         total_object_count.setText(f'{total_obj_cnt}')
         total_action_count.setText(f'{total_act_cnt}')
 
@@ -197,7 +194,8 @@ class init_layout(QWidget):
                 if type(self.recognize_frame) == dict:
                     ## 행동 confidence 값
                     # 이거 이용해서 count된 값 보여주면 될듯
-                    frame_confidence = self.recognize_frame
+                    action_count = self.recognize_frame
+                    self.cls_count(action_count)
                 else:
                     self.recognize_frame = self.convert_cv_qt(self.recognize_frame)
 
