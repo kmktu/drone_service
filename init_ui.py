@@ -68,6 +68,11 @@ class init_layout(QWidget):
 
         self.setLayout(main_layout)
 
+        # ADD model init
+        self.model_init = lv.LoadVideo_model()
+        print("model init !!!")
+        # self.inference_model_yolo, self.inference_model_slowfast = lv.model_init()
+
     def video_start(self): # 영상 재생 함수
         if self.file_list_widget.currentItem() == None: # listwidget 아이템 미선택시 바로 리턴
             return
@@ -90,24 +95,32 @@ class init_layout(QWidget):
                 # ADD 행동 큐
                 self.action_detect_q = Queue() # 행동 추론 영상의 frame이 담길 Queue
 
-                self.frame_reader_p = Process(target=lv.read_frames, args=(self.frame_q, self.detect_q, video_path),
-                                              name="READ_FRAME_P") # 쓰레드를 통한 영상 프레임 읽기(원본 영상 프레임은 frame_q에, 추론 영상 프레임은 detect_q에 쌓임)
+                # self.frame_reader_p = Process(target=lv.read_frames, args=(self.frame_q, self.detect_q, video_path),
+                #                               name="READ_FRAME_P") # 쓰레드를 통한 영상 프레임 읽기(원본 영상 프레임은 frame_q에, 추론 영상 프레임은 detect_q에 쌓임)
+
+                self.frame_reader_p = Process(target=self.model_init.read_frames, args=(self.frame_q, self.detect_q,
+                                                                                          video_path),
+                                              name="READ_FRAME_P")
 
                 executor = ThreadPoolExecutor(1) # 쓰레드를 통한 원본 영상 및 추론 영상 프레임 가시화
                 executor.submit(self.visual_process)
 
                 # ADD 행동 프로세스
-                self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.frame_q, self.action_detect_q, video_path),
-                                                                     name="SLOWFAST_FRAME_P")
-
-                executor2 = ThreadPoolExecutor(1)  # 쓰레드를 통한 원본 영상 및 추론 영상 프레임 가시화
-                executor2.submit(self.visual_process2)
+                # self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.frame_q, self.action_detect_q,
+                #                                                                      video_path),
+                #                                name="SLOWFAST_FRAME_P")
+                # self.frame_reader_p2 = Process(target=self.load_model.slowfast_read_frames, args=(self.action_detect_q,
+                #                                                                                   video_path),
+                #                                name="SLOWFAST_FRAME_P")
+                #
+                # executor2 = ThreadPoolExecutor(1)  # 쓰레드를 통한 원본 영상 및 추론 영상 프레임 가시화
+                # executor2.submit(self.visual_process2)
 
                 self.frame_reader_p.daemon = True
                 self.frame_reader_p.start()
 
-                self.frame_reader_p2.daemon = False
-                self.frame_reader_p2.start()
+                # self.frame_reader_p2.daemon = False
+                # self.frame_reader_p2.start()
 
                 print("start")
 
@@ -122,8 +135,8 @@ class init_layout(QWidget):
         self.video_play = False
         if self.frame_reader_p.is_alive():
             self.frame_reader_p.terminate()
-        if self.frame_reader_p2.is_alive():
-            self.frame_reader_p2.terminate()
+        # if self.frame_reader_p2.is_alive():
+        #     self.frame_reader_p2.terminate()
         print("stop")
 
     def cls_count(self, detect_count_dict: dict):  # Object Count 갱신 함수
