@@ -68,6 +68,9 @@ class init_layout(QWidget):
 
         self.setLayout(main_layout)
 
+        self.vis1_ready = True
+        self.vis2_ready = True
+
         # ADD model init
         # self.model_init = lv.LoadVideo_model()
         # print("model init !!!")
@@ -171,16 +174,21 @@ class init_layout(QWidget):
 
     def visual_process(self): # 영상 가시화 함수
         while True:
+            self.vis1_ready = False
             if self.frame_q.qsize() > 0 and self.video_play: # 영상이 재생 중이며 frame_q에 frame이 하나 이상 존재할 때 가시화
                 frame = self.frame_q.get()
                 frame = self.convert_cv_qt(frame)
                 detect_result = self.detect_q.get()
                 detect_frame = self.convert_cv_qt(detect_result[0])  # detect_q 중 frame
+                self.vis1_ready = True
+                while not self.vis2_ready:
+                    if self.vis1_ready and self.vis2_ready:
+                        break
                 self.original_video.setImage(frame)
                 self.detected_video.setImage(detect_frame)
                 detect_count = detect_result[1]  # detect_q 중 라벨 수 dict
                 self.cls_count(detect_count)
-                time.sleep(0.03)
+                time.sleep(0.04)
             else:
                 continue
 
@@ -188,6 +196,7 @@ class init_layout(QWidget):
     def visual_process2(self): # 영상 가시화 함수
         action_detect_q_flag = False
         while True:
+            self.vis2_ready = False
             if self.action_detect_q.qsize() > 0:
                 action_detect_q_flag = True
                 self.recognize_frame = self.action_detect_q.get()
@@ -204,8 +213,12 @@ class init_layout(QWidget):
 
             if action_detect_q_flag:
                 if type(self.recognize_frame) != dict:
+                    self.vis2_ready = True
+                    while not self.vis1_ready:
+                        if self.vis1_ready and self.vis2_ready:
+                            break
                     self.recognize_video.setImage(self.recognize_frame)
-                    time.sleep(0.03)
+                    time.sleep(0.04)
             else:
                 continue
 
