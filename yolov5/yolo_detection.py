@@ -20,6 +20,8 @@ from utils.augmentations import letterbox
 from utils.plots import Annotator, colors, save_one_box
 from utils.general import (LOGGER, check_img_size, check_requirements, colorstr,
                            non_max_suppression, scale_coords, strip_optimizer, xyxy2xywh)
+import cv2
+import time
 
 class ObjectDetection():
     def __init__(self):
@@ -53,6 +55,20 @@ class ObjectDetection():
         self.model = DetectMultiBackend(self.model_path, device=self.device, dnn=False, fp16=False)
         self.stride, self.names, self.pt = self.model.stride, self.model.names, self.model.pt
         self.model.warmup()
+
+    def read_frames(self, frame_q, detect_q, video_path):
+        reader = cv2.VideoCapture(video_path)
+        nframes = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        for ii in range(nframes):
+            while frame_q.qsize() > 50:
+                time.sleep(1)
+            _, frame = reader.read()
+
+            frame_q.put(frame)
+            self.inference_img(frame)
+            inference_img = self.get_data()
+            detect_q.put(inference_img)
 
     @torch.no_grad()
     def inference_img(self, img_to_infer):

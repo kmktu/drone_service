@@ -19,6 +19,7 @@ from slowfast.visualization.predictor import ActionPredictor
 from slowfast.utils import logging
 from slowfast.utils.parser import load_config, parse_args
 from slowfast.visualization.utils import TaskInfo
+from SlowFast.slowfast.utils.misc import get_class_names
 
 import tqdm
 import numpy as np
@@ -26,7 +27,8 @@ import torch
 import time
 
 # from queue import Queue
-from multiprocessing import Queue
+# from multiprocessing import Queue
+from torch.multiprocessing import Queue
 
 logger = logging.get_logger(__name__)
 
@@ -80,6 +82,7 @@ class SlowFastDetection():
         ), "Buffer size cannot be greater than half of sequence length."
 
         self.queue = Queue()
+        print("slowfast model init")
 
     def video_path_input(self, input_cv_cap, video_path):
         self.input_cv_cap = input_cv_cap
@@ -143,10 +146,8 @@ class SlowFastDetection():
         if task is None:
             time.sleep(0.02)
         num_task += 1
-
         self.model.put(task)
         get_flag = False
-        
         # queue.get 은 생각보다 시간이 오래 걸림 그래서 while을 통해 플래그 확인
         while True:
             try:
@@ -178,3 +179,36 @@ class SlowFastDetection():
             frameSize=(self.display_width, self.display_height),
             isColor=True,
         )
+
+    def slowfast_read_frames(self, action_detect_q, video_path):
+        reader = cv2.VideoCapture(video_path)
+        nframes = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        self.video_path_input(reader, video_path)
+        class_names_path = self.cfg.DEMO.LABEL_FILE_PATH
+        # common_class_thres = inference_model_slowfast.cfg.DEMO.COMMON_CLASS_THRES
+        # uncommon_class_thres = inference_model_slowfast.cfg.DEMO.UNCOMMON_CLASS_THRES
+        # common_class_names = inference_model_slowfast.cfg.DEMO.COMMON_CLASS_NAMES
+
+        class_names, _, _ = get_class_names(class_names_path, None, None)
+        class_names_dict = {}  # 클래스 이름별 탐지 결과 저장
+
+        frames_list = []
+
+        for ii in range(nframes):  # 영상의 마지막 프레임까지 반복
+            _, frame = reader.read()
+            frames_list.append(frame)
+            if len(frames_list) == self.seq_length:
+                for task in self.run_model(frames_list):
+                    action_confidence_list = task.action_preds.tolist()
+                    # action_confidence_list length => 12 => index start 0
+                    # class_names => length => 13 => index start 1, first index value is None
+                    # 클래스별 컨피던스 값
+
+                    for i, class_name in enumerate(class_names):
+                        if class_name != None:
+                            class_names_dict[class_name] = action_confidence_list[0][i - 1]
+                    for frame in task.frames[task.num_buffer_frames:]:
+                        action_detect_q.put(frame)
+                    action_detect_q.put(class_names_dict)
+                frames_list.clear()
