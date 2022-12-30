@@ -10,6 +10,11 @@ from draw.draw_file_list import draw_file_list
 from load_video.ImageViewer import *
 import time
 
+
+"""Dev Options"""
+video_sync = False  # Sync 기능 On/Off
+
+
 class init_layout(QWidget):
     def __init__(self): # UI 초기화
         super().__init__()
@@ -68,8 +73,9 @@ class init_layout(QWidget):
 
         self.setLayout(main_layout)
 
-        self.vis1_ready = True
-        self.vis2_ready = True
+        self.vis1_ready = False
+        self.vis2_ready = False
+        self.vis_terminate = False
 
         # ADD model init
         # self.model_init = lv.LoadVideo_model()
@@ -91,6 +97,7 @@ class init_layout(QWidget):
             else:               # 초기 영상 Loading
                 self.video_load = True
                 self.video_play = True
+                self.vis_terminate = False
 
                 self.frame_q = Queue()  # 선택된 영상의 frame이 담길 Queue
                 self.detect_q = Queue() # 추론된 영상의 frame이 담길 Queue
@@ -134,12 +141,16 @@ class init_layout(QWidget):
     def video_stop(self): # 영상 초기화 함수
         self.frame_q = None
         self.detect_q = None
+        self.action_detect_q = None
         self.video_load = False
         self.video_play = False
         if self.frame_reader_p.is_alive():
             self.frame_reader_p.terminate()
-        # if self.frame_reader_p2.is_alive():
-        #     self.frame_reader_p2.terminate()
+        if self.frame_reader_p2.is_alive():
+            self.frame_reader_p2.terminate()
+        self.vis_terminate = True
+        self.vis1_ready = False
+        self.vis2_ready = False
         print("stop")
 
     def cls_count(self, detect_count_dict: dict):  # Object Count 갱신 함수
@@ -181,8 +192,8 @@ class init_layout(QWidget):
                 detect_result = self.detect_q.get()
                 detect_frame = self.convert_cv_qt(detect_result[0])  # detect_q 중 frame
                 self.vis1_ready = True
-                while not self.vis2_ready:
-                    if self.vis1_ready and self.vis2_ready:
+                while not self.vis2_ready and video_sync:
+                    if self.vis1_ready and self.vis2_ready or self.vis_terminate:
                         break
                 self.original_video.setImage(frame)
                 self.detected_video.setImage(detect_frame)
@@ -214,8 +225,8 @@ class init_layout(QWidget):
             if action_detect_q_flag:
                 if type(self.recognize_frame) != dict:
                     self.vis2_ready = True
-                    while not self.vis1_ready:
-                        if self.vis1_ready and self.vis2_ready:
+                    while not self.vis1_ready and video_sync:
+                        if self.vis1_ready and self.vis2_ready or self.vis_terminate:
                             break
                     self.recognize_video.setImage(self.recognize_frame)
                     time.sleep(0.04)
