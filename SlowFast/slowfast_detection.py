@@ -144,7 +144,6 @@ class SlowFastDetection():
             time.sleep(0.02)
         self.num_task += 1
         self.model.put(task)
-        print("completed task put in model ")
 
         get_flag = False
 

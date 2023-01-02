@@ -9,6 +9,7 @@ from draw.draw_month_barchart import draw_month_barchart
 from draw.draw_file_list import draw_file_list
 from load_video.ImageViewer import *
 import time
+import os
 
 
 """Dev Options"""
@@ -25,7 +26,6 @@ class init_layout(QWidget):
         self.original_video = ImageViewer() # 원본 영상 Viewer
         self.detected_video = ImageViewer() # 추론 영상 Viewer
 
-        # ADD
         self.recognize_video = ImageViewer() # action Viewer
 
         self.video_start_btn = QPushButton("Start", self) # 영상 재생 버튼
@@ -34,6 +34,10 @@ class init_layout(QWidget):
         self.video_pause_btn.clicked.connect(self.video_pause)
         self.video_stop_btn = QPushButton("Stop", self) # 영상 초기화 버튼
         self.video_stop_btn.clicked.connect(self.video_stop)
+
+        # 파일리스트 경로 지정 버튼
+        self.video_file_list_btn = QPushButton("File List Path", self)
+        self. video_file_list_btn.clicked.connect(self.video_file_list_path)
 
         main_layout = QVBoxLayout() # 메인 레이아웃(비디오영역, 비디오 컨트롤러 영역, 통계 영역)
         play_video_layout = QHBoxLayout() # 비디오 레이아웃(원본 영상, 추론 영상, 영상 리스트)
@@ -52,8 +56,10 @@ class init_layout(QWidget):
         play_video_btn_layout.addWidget(self.video_start_btn) # 영상 재생 버튼
         play_video_btn_layout.addWidget(self.video_pause_btn) # 영상 일시정지 버튼
         play_video_btn_layout.addWidget(self.video_stop_btn) # 영상 초기화 버튼
+        play_video_btn_layout.addWidget(self.video_file_list_btn)
 
-        self.file_list_widget = draw_file_list() # 파일 리스트 불러오기(listwidget 리턴)
+        # self.file_list_widget = draw_file_list(None) # 파일 리스트 불러오기(listwidget 리턴)
+        self.file_list_widget = QListWidget()
         self.file_list_widget.currentItemChanged.connect(self.chk_current_item_changed) # listwidget 아이템 선택시 이벤트
         play_video_layout.addWidget(self.file_list_widget)
 
@@ -243,3 +249,12 @@ class init_layout(QWidget):
 
     def chk_current_item_changed(self): # listwidget 아이템 선택시 발생하는 이벤트
         print("Clicked Video : " + self.file_list_widget.currentItem().text())
+
+    def video_file_list_path(self):
+        file_list_path = QFileDialog.getExistingDirectory(self)
+        for root, dirs, files in os.walk(file_list_path):
+            for file in files:
+                print(file)
+                _, extension = os.path.splitext(file)
+                if extension == ".mp4":
+                    self.file_list_widget.addItem(root + "/" + file)
