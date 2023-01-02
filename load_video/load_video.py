@@ -4,6 +4,8 @@ from yolov5 import yolo_detection
 from SlowFast.slowfast_detection import SlowFastDetection
 from SlowFast.slowfast.utils.misc import get_class_names
 
+from multiprocessing import active_children
+
 def read_frames(frame_q, detect_q, video_path): # 영상의 프레임을 읽어와서 모델 추론을 수행하는 함수
     inference_model_yolo = yolo_detection.ObjectDetection()
     reader = cv2.VideoCapture(video_path)
@@ -21,7 +23,7 @@ def read_frames(frame_q, detect_q, video_path): # 영상의 프레임을 읽어�
         inference_img = inference_model_yolo.get_data()
         detect_q.put(inference_img)
 
-def slowfast_read_frames(action_detect_q, video_path):
+def slowfast_read_frames(action_detect_q, action_stop_pipe_child, video_path):
     reader = cv2.VideoCapture(video_path)
 
     nframes = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -39,6 +41,17 @@ def slowfast_read_frames(action_detect_q, video_path):
         _, frame = reader.read()
 
         frames_list.append(frame)
+        
+        # pipe 이용해서 stop 버튼 클릭했을 시 신호를 보내고 신호 확인 후 child 프로세스들 다 종료 후 Done 메세지 보냄
+        if str(action_stop_pipe_child.poll()) == "True":
+            stop_flag = action_stop_pipe_child.recv()
+            print(stop_flag)
+            if stop_flag == 'stop':
+                children = active_children()
+                for child in children:
+                    child.terminate()
+                action_stop_pipe_child.send('done')
+
         if len(frames_list) == inference_model_slowfast.seq_length:
             for task in inference_model_slowfast.run_model(frames_list):
 
@@ -57,6 +70,7 @@ def slowfast_read_frames(action_detect_q, video_path):
                     action_detect_q.put(frame)
 
                 action_detect_q.put(class_names_dict)
+
             frames_list.clear()
         else:
             continue
