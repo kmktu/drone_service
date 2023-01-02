@@ -116,7 +116,7 @@ class init_layout(QWidget):
                 executor.submit(self.visual_process)
 
                 # ADD 행동 프로세스
-                self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.frame_q, self.action_detect_q,
+                self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.action_detect_q,
                                                                                      video_path),
                                                name="SLOWFAST_FRAME_P")
                 # self.frame_reader_p2 = Process(target=self.load_model.slowfast_read_frames, args=(self.action_detect_q,

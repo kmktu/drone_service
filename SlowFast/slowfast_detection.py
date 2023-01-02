@@ -38,6 +38,8 @@ class SlowFastDetection():
 
     def model_init(self):
         self.cfg_path = "configs/AVA/SLOWFAST_32x2_R50_SHORT5.yaml"
+        self.num_task = 0
+
         self.args = parse_args()
         for path_to_config in self.args.cfg_files:
             self.cfg = load_config(self.args, path_to_config)
@@ -133,32 +135,35 @@ class SlowFastDetection():
         task.img_width = self.display_width
         task.crop_size = self.test_crop_size
         task.clip_vis_size = self.clip_vis_size
-
-        # for i in range(len(frames_list)):
-        #     task.add_frames(self.id, frames_list[i])
         task.add_frames(self.id, frames_list)
         task.num_buffer_frames = 0 if self.id == 0 else self.buffer_size
 
         self.was_read = True
 
-        num_task = 0
-
         if task is None:
             time.sleep(0.02)
-        num_task += 1
+        self.num_task += 1
         self.model.put(task)
+        print("completed task put in model ")
+
         get_flag = False
-        # queue.get 은 생각보다 시간이 오래 걸림 그래서 while을 통해 플래그 확인
-        while True:
+
+        try:
+            task = self.model.get()
+            self.num_task -= 1
+            yield task
+        except IndexError:
+            pass
+
+        while self.num_task != 0:
             try:
                 task = self.model.get()
                 get_flag = True
-                num_task -= 1
+                self.num_task -= 1
                 yield task
                 if get_flag:
-                    print("get success")
                     break
-            except Exception as e:
+            except IndexError:
                 continue
 
 
