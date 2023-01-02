@@ -2,7 +2,7 @@ import cv2
 import load_video.load_video as lv
 from concurrent.futures import ThreadPoolExecutor
 
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Pipe
 
 from draw.draw_camera_groupbox import draw_camera_object_groupbox, draw_camera_action_groupbox
 from draw.draw_month_barchart import draw_month_barchart
@@ -236,6 +236,8 @@ class init_layout(QWidget):
                 # ADD 행동 큐
                 self.action_detect_q = Queue() # 행동 추론 영상의 frame이 담길 Queue
 
+                self.action_stop_pipe_parent, self.action_stop_pipe_child = Pipe()
+
                 self.frame_reader_p = Process(target=lv.read_frames, args=(self.frame_q, self.detect_q, video_path),
                                               name="READ_FRAME_P") # 쓰레드를 통한 영상 프레임 읽기(원본 영상 프레임은 frame_q에, 추론 영상 프레임은 detect_q에 쌓임)
 
@@ -247,7 +249,7 @@ class init_layout(QWidget):
                 executor.submit(self.visual_process)
 
                 # ADD 행동 프로세스
-                self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.action_detect_q,
+                self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.action_detect_q, self.action_stop_pipe_child,
                                                                                      video_path),
                                                name="SLOWFAST_FRAME_P")
                 # self.frame_reader_p2 = Process(target=self.load_model.slowfast_read_frames, args=(self.action_detect_q,
@@ -277,8 +279,16 @@ class init_layout(QWidget):
         self.video_play = False
         if self.frame_reader_p.is_alive():
             self.frame_reader_p.terminate()
+            
+        # pipe 신호를 이용해서 프로세스 종료
         if self.frame_reader_p2.is_alive():
-            self.frame_reader_p2.terminate()
+            self.action_stop_pipe_parent.send("stop")
+            while True:
+                if str(self.action_stop_pipe_parent.poll()):
+                    if self.action_stop_pipe_parent.recv() == "done":
+                        self.frame_reader_p2.terminate()
+                        break
+
         self.vis_terminate = True
         self.vis1_ready = False
         self.vis2_ready = False
