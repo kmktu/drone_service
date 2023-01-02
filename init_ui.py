@@ -6,10 +6,11 @@ from multiprocessing import Process, Queue
 
 from draw.draw_camera_groupbox import draw_camera_object_groupbox, draw_camera_action_groupbox
 from draw.draw_month_barchart import draw_month_barchart
-from draw.draw_file_list import draw_file_list
+# from draw.draw_file_list import draw_file_list
 from load_video.ImageViewer import *
 import time
 import os
+from PyQt5.QtCore import Qt
 
 
 """Dev Options"""
@@ -36,33 +37,144 @@ class init_layout(QWidget):
         self.video_stop_btn.clicked.connect(self.video_stop)
 
         # 파일리스트 경로 지정 버튼
-        self.video_file_list_btn = QPushButton("File List Path", self)
-        self. video_file_list_btn.clicked.connect(self.video_file_list_path)
+        self.video_file_list_btn = QPushButton("ADD File List Path", self)
+        self.video_file_list_btn.clicked.connect(self.video_file_list_path)
+
+        # 버튼 폰트 사이즈 크기 설정
+        font_size = 12
+        start_btn_font = self.video_start_btn.font()
+        start_btn_font.setPointSize(font_size)
+        self.video_start_btn.setFont(start_btn_font)
+
+        stop_btn_font = self.video_stop_btn.font()
+        stop_btn_font.setPointSize(font_size)
+        self.video_stop_btn.setFont(stop_btn_font)
+
+        pause_btn_font = self.video_pause_btn.font()
+        pause_btn_font.setPointSize(font_size)
+        self.video_pause_btn.setFont(pause_btn_font)
+
+        file_list_btn_font = self.video_file_list_btn.font()
+        file_list_btn_font.setPointSize(font_size)
+        self.video_file_list_btn.setFont(file_list_btn_font)
 
         main_layout = QVBoxLayout() # 메인 레이아웃(비디오영역, 비디오 컨트롤러 영역, 통계 영역)
-        play_video_layout = QHBoxLayout() # 비디오 레이아웃(원본 영상, 추론 영상, 영상 리스트)
+
+        all_play_video_layout = QVBoxLayout() # 전체 비디오 레이아웃(영상, 라벨)
+        play_video_label_layout = QHBoxLayout() # 비디오 라벨 레이아웃(라벨)
+        play_video_layout = QHBoxLayout() # 비디오 레이아웃(원본 영상, 추론 영상)
+
+        all_file_list_layout = QVBoxLayout() # 전체 파일 리스트 레이아웃(파일리스트, 버튼)
+        file_list_btn_layout = QHBoxLayout() # 파일리스트 버튼 레이아웃(버튼)
+        file_list_layout = QHBoxLayout() # 파일 리스트 레이아웃
+
+        empty_widget = QWidget()        # 영상 부분과 파일리스트 사이를 띄우기 위함 공백임
+        empty_widget.setFixedHeight(15)
+        empty_box_layout = QHBoxLayout()
+        empty_box_layout.addWidget(empty_widget)
+        
+        empty_widget2 = QWidget()  # 파일리스트와 통계부분 띄우기 위함
+        empty_widget2.setFixedHeight(15)
+        empty_box_layout2 = QHBoxLayout()
+        empty_box_layout2.addWidget(empty_widget)
+
         play_video_btn_layout = QHBoxLayout() # 비디오 플레이어 레이아웃(재생버튼, 일시정지 버튼, 초기화 버튼)
+
+        all_information_layout = QVBoxLayout()
 
         information_widget = QWidget()
         information_widget.setFixedHeight(300) # 높이 300 고정
         information_layout = QHBoxLayout() # 통계 레이아웃(객체 통계, 액션 통계, 월별 통계)
 
-        play_video_layout.addWidget(self.original_video) # 원본 영상
-        play_video_layout.addWidget(self.detected_video) # 추론 영상
+        # 영상, 영상 라벨 전체 부분
+        self.play_video_qlabel = QLabel(self)
+        self.play_video_qlabel.setFont(QFont('Arial', 15))
+        self.play_video_qlabel.setText("Video")
+        self.play_video_qlabel.setFixedSize(68, 20)
 
-        # ADD
+        all_play_video_line1 = QFrame()
+        all_play_video_line1.setFrameShape(QFrame.HLine)
+        all_play_video_line1.setFrameShadow(QFrame.Sunken)
+
+        all_play_video_layout.addWidget(self.play_video_qlabel)
+        all_play_video_layout.addWidget(all_play_video_line1)
+
+        # 영상 부분 라인 그리기
+        play_video_line2 = QFrame()
+        play_video_line3 = QFrame()
+        play_video_line2.setFrameShape(QFrame.VLine)
+        play_video_line2.setFrameShadow(QFrame.Sunken)
+        play_video_line3.setFrameShape(QFrame.VLine)
+        play_video_line3.setFrameShadow(QFrame.Sunken)
+        
+        # 영상 부분 위젯
+        play_video_layout.addWidget(self.original_video) # 원본 영상
+        play_video_layout.addWidget(play_video_line2)
+        play_video_layout.addWidget(self.detected_video) # 추론 영상
+        play_video_layout.addWidget(play_video_line3)
         play_video_layout.addWidget(self.recognize_video) # action Video
 
-        play_video_btn_layout.addWidget(self.video_start_btn) # 영상 재생 버튼
-        play_video_btn_layout.addWidget(self.video_pause_btn) # 영상 일시정지 버튼
-        play_video_btn_layout.addWidget(self.video_stop_btn) # 영상 초기화 버튼
-        play_video_btn_layout.addWidget(self.video_file_list_btn)
+        # 영상 라벨 위젯
+        self.play_video_label1 = QLabel(self)
+        self.play_video_label1.setFont(QFont('Arial', 12))
+        self.play_video_label1.setText("Original Video")
+        self.play_video_label1.setAlignment(Qt.AlignCenter)
 
-        # self.file_list_widget = draw_file_list(None) # 파일 리스트 불러오기(listwidget 리턴)
+        self.play_video_label2 = QLabel(self)
+        self.play_video_label2.setFont(QFont('Arial', 12))
+        self.play_video_label2.setText("Object Detection")
+        self.play_video_label2.setAlignment(Qt.AlignCenter)
+
+        self.play_video_label3 = QLabel(self)
+        self.play_video_label3.setFont(QFont('Arial', 12))
+        self.play_video_label3.setText("Action Detection")
+        self.play_video_label3.setAlignment(Qt.AlignCenter)
+
+        play_video_label_layout.addWidget(self.play_video_label1)
+        play_video_label_layout.addWidget(self.play_video_label2)
+        play_video_label_layout.addWidget(self.play_video_label3)
+
+        # 전체 파일리스트 위젯
+        self.file_list_qlabel = QLabel(self)
+        self.file_list_qlabel.setFont(QFont('Arial', 15))
+        self.file_list_qlabel.setText("File List")
+        self.file_list_qlabel.setFixedSize(68, 20)
+
+        all_file_list_line1 = QFrame()
+        all_file_list_line1.setFrameShape(QFrame.HLine)
+        all_file_list_line1.setFrameShadow(QFrame.Sunken)
+
+        all_file_list_layout.addWidget(self.file_list_qlabel)
+        all_file_list_layout.addWidget(all_file_list_line1)
+        
+        # 파일리스트 위젯
         self.file_list_widget = QListWidget()
         self.file_list_widget.currentItemChanged.connect(self.chk_current_item_changed) # listwidget 아이템 선택시 이벤트
-        play_video_layout.addWidget(self.file_list_widget)
+        file_list_layout.addWidget(self.file_list_widget)
+        
+        # 파일리스트 버튼 위젯
+        file_list_btn_layout.addWidget(self.video_file_list_btn)
 
+        # play_video_btn layout widget
+        play_video_btn_layout.addWidget(self.video_start_btn)  # 영상 재생 버튼
+        play_video_btn_layout.addWidget(self.video_pause_btn)  # 영상 일시정지 버튼
+        play_video_btn_layout.addWidget(self.video_stop_btn)  # 영상 초기화 버튼
+
+        # 정보 레이아웃 전체
+
+        self.information_qlabel = QLabel(self)
+        self.information_qlabel.setFont(QFont('Arial', 15))
+        self.information_qlabel.setText("Information")
+        self.information_qlabel.setFixedSize(100, 20)
+
+        information_line1 = QFrame()
+        information_line1.setFrameShape(QFrame.HLine)
+        information_line1.setFrameShadow(QFrame.Sunken)
+
+        all_information_layout.addWidget(self.information_qlabel)
+        all_information_layout.addWidget(information_line1)
+
+        # information_layout widget
         self.camera_object_groupbox_widget = draw_camera_object_groupbox() # 객체 통계 그룹박스 불러오기(QGroupBox 리턴)
         information_layout.addWidget(self.camera_object_groupbox_widget)
 
@@ -72,10 +184,23 @@ class init_layout(QWidget):
         self.month_barchart_widget = draw_month_barchart() # 월별 통계 barchart 불러오기(barchar 리턴)
         information_layout.addWidget(self.month_barchart_widget)
 
-        main_layout.addLayout(play_video_layout)
-        main_layout.addLayout(play_video_btn_layout)
+        # 레이아웃 추가
+        all_play_video_layout.addLayout(play_video_label_layout)
+        all_play_video_layout.addLayout(play_video_layout)
+        all_play_video_layout.addLayout(play_video_btn_layout)
+
+        all_file_list_layout.addLayout(file_list_layout)
+        all_file_list_layout.addLayout(file_list_btn_layout)
+
         information_widget.setLayout(information_layout)
-        main_layout.addWidget(information_widget)
+        all_information_layout.addLayout(information_layout)
+        all_information_layout.addWidget(information_widget)
+
+        main_layout.addLayout(all_play_video_layout)
+        main_layout.addLayout(empty_box_layout)
+        main_layout.addLayout(all_file_list_layout)
+        main_layout.addLayout(empty_box_layout2)
+        main_layout.addLayout(all_information_layout)
 
         self.setLayout(main_layout)
 
@@ -244,7 +369,7 @@ class init_layout(QWidget):
         h, w, c = rgb_image.shape
         bytes_per_line = c * w
         convert_to_Qt_format = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
-        scaled_img = convert_to_Qt_format.scaled(640, 360, Qt.IgnoreAspectRatio)
+        scaled_img = convert_to_Qt_format.scaled(620, 360, Qt.IgnoreAspectRatio)
         return scaled_img
 
     def chk_current_item_changed(self): # listwidget 아이템 선택시 발생하는 이벤트
@@ -254,7 +379,6 @@ class init_layout(QWidget):
         file_list_path = QFileDialog.getExistingDirectory(self)
         for root, dirs, files in os.walk(file_list_path):
             for file in files:
-                print(file)
                 _, extension = os.path.splitext(file)
                 if extension == ".mp4":
                     self.file_list_widget.addItem(root + "/" + file)
