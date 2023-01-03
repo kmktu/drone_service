@@ -1,13 +1,15 @@
 import time
 import cv2
-from yolov5 import yolo_detection
+# from yolov5 import yolo_detection
+# from Yolov5_StrongSORT_OSNet.yolov5 import yolo_detection
+from Yolov5_StrongSORT_OSNet import yolo_sort_detection
 from SlowFast.slowfast_detection import SlowFastDetection
 from SlowFast.slowfast.utils.misc import get_class_names
 
 from multiprocessing import active_children
 
 def read_frames(frame_q, detect_q, video_path): # 영상의 프레임을 읽어와서 모델 추론을 수행하는 함수
-    inference_model_yolo = yolo_detection.ObjectDetection()
+    inference_model_yolo = yolo_sort_detection.ObjectDetection()
     reader = cv2.VideoCapture(video_path)
 
     nframes = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -19,7 +21,8 @@ def read_frames(frame_q, detect_q, video_path): # 영상의 프레임을 읽어�
 
         frame_q.put(frame)
         # 모델 추론부
-        inference_model_yolo.inference_img(frame)
+        # inference_model_yolo.inference_img(frame)
+        inference_model_yolo.inference_tracking(frame)
         inference_img = inference_model_yolo.get_data()
         detect_q.put(inference_img)
 
