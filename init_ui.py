@@ -12,9 +12,11 @@ import time
 import os
 from PyQt5.QtCore import Qt
 
+import json
+from collections import OrderedDict
 
 """Dev Options"""
-video_sync = False  # Sync 기능 On/Off
+video_sync = True  # Sync 기능 On/Off
 
 
 class init_layout(QWidget):
@@ -204,9 +206,13 @@ class init_layout(QWidget):
 
         self.setLayout(main_layout)
 
+        # Sync 플래그 추가
         self.vis1_ready = False
         self.vis2_ready = False
         self.vis_terminate = False
+
+        self.video_path = None
+        self.init_count()
 
         # ADD model init
         # self.model_init = lv.LoadVideo_model()
@@ -217,9 +223,9 @@ class init_layout(QWidget):
         if self.file_list_widget.currentItem() == None: # listwidget 아이템 미선택시 바로 리턴
             return
         else:
-            video_path = self.file_list_widget.currentItem().text()  # listwidget으로부터 선택된 영상 경로 불러오기
-            if self.last_video != video_path: # 마지막 재생 영상과 현재 선택된 영상 미일치시 비디오 처음부터 다시 재생
-                self.last_video = video_path
+            self.video_path = self.file_list_widget.currentItem().text()  # listwidget으로부터 선택된 영상 경로 불러오기
+            if self.last_video != self.video_path: # 마지막 재생 영상과 현재 선택된 영상 미일치시 비디오 처음부터 다시 재생
+                self.last_video = self.video_path
                 if self.video_load == True:
                     self.video_stop()
 
@@ -228,7 +234,8 @@ class init_layout(QWidget):
             else:               # 초기 영상 Loading
                 self.video_load = True
                 self.video_play = True
-                self.vis_terminate = False
+                self.vis_terminate = False  # Sync 반복문 정지 플래그 비활성화
+                self.init_count()  # Count 0으로 초기화
 
                 self.frame_q = Queue()  # 선택된 영상의 frame이 담길 Queue
                 self.detect_q = Queue() # 추론된 영상의 frame이 담길 Queue
@@ -238,7 +245,7 @@ class init_layout(QWidget):
 
                 self.action_stop_pipe_parent, self.action_stop_pipe_child = Pipe()
 
-                self.frame_reader_p = Process(target=lv.read_frames, args=(self.frame_q, self.detect_q, video_path),
+                self.frame_reader_p = Process(target=lv.read_frames, args=(self.frame_q, self.detect_q, self.video_path),
                                               name="READ_FRAME_P") # 쓰레드를 통한 영상 프레임 읽기(원본 영상 프레임은 frame_q에, 추론 영상 프레임은 detect_q에 쌓임)
 
                 # self.frame_reader_p = Process(target=self.model_init.read_frames, args=(self.frame_q, self.detect_q,
@@ -250,7 +257,7 @@ class init_layout(QWidget):
 
                 # ADD 행동 프로세스
                 self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.action_detect_q, self.action_stop_pipe_child,
-                                                                                     video_path),
+                                                                                     self.video_path),
                                                name="SLOWFAST_FRAME_P")
                 # self.frame_reader_p2 = Process(target=self.load_model.slowfast_read_frames, args=(self.action_detect_q,
                 #                                                                                   video_path),
@@ -289,40 +296,72 @@ class init_layout(QWidget):
                         self.frame_reader_p2.terminate()
                         break
 
-        self.vis_terminate = True
+        # Sync 플래그 초기화
+        self.vis_terminate = True  # Sync 반복문 정지 플래그 활성화
         self.vis1_ready = False
         self.vis2_ready = False
+
+        self.drop_log()
+
         print("stop")
 
+    def init_count(self):  # 영상 정지 후 시작시에 Count를 0으로 초기화 및 변수 할당
+        # 클래스 정의
+        self.action_cls = ['sos', 'fall_down', 'total_action']
+        self.object_cls = ['car', 'person', 'boat', 'total_object']
+        self.total_object_count = self.camera_object_groupbox_widget.findChild(QLabel, 'total_object_count')
+        self.person_count = self.camera_object_groupbox_widget.findChild(QLabel, 'person_count')
+        self.car_count = self.camera_object_groupbox_widget.findChild(QLabel, 'car_count')
+        self.boat_count = self.camera_object_groupbox_widget.findChild(QLabel, 'boat_count')
+        self.total_action_count = self.camera_action_groupbox_widget.findChild(QLabel, 'total_action_count')
+        self.sos_count = self.camera_action_groupbox_widget.findChild(QLabel, 'sos_count')
+        self.fall_down_count = self.camera_action_groupbox_widget.findChild(QLabel, 'fall_down_count')
+        self.total_object_count.setText('0')
+        self.person_count.setText('0')
+        self.car_count.setText('0')
+        self.boat_count.setText('0')
+        self.total_action_count.setText('0')
+        self.sos_count.setText('0')
+        self.fall_down_count.setText('0')
+
     def cls_count(self, detect_count_dict: dict):  # Object Count 갱신 함수
-        # 클래스 정의 (리소스 낭비로 인해 이 위치 외에 옮길 좋은 위치 필요)
-        actions = ['sos', 'fall_down']
-        objects = ['car', 'person', 'boat']
-
-        # 최신 개수 받아오기
-        total_object_count = self.camera_object_groupbox_widget.findChild(QLabel, 'total_object_count')
-        person_count = self.camera_object_groupbox_widget.findChild(QLabel, 'person_count')
-        car_count = self.camera_object_groupbox_widget.findChild(QLabel, 'car_count')
-        boat_count = self.camera_object_groupbox_widget.findChild(QLabel, 'boat_count')
-        total_action_count = self.camera_action_groupbox_widget.findChild(QLabel, 'total_action_count')
-        sos_count = self.camera_action_groupbox_widget.findChild(QLabel, 'sos_count')
-        fall_down_count = self.camera_action_groupbox_widget.findChild(QLabel, 'fall_down_count')
-
         # detect_count_dict에 포함된 Object 개수 더하기
-        total_obj_cnt = int(total_object_count.text())
-        total_act_cnt = int(total_action_count.text())
+        total_obj_cnt = int(self.total_object_count.text())
+        total_act_cnt = int(self.total_action_count.text())
         for cls, value in detect_count_dict.items():
-            if cls in actions or cls in objects:
-                cnt = int(eval(f'{cls}_count.text()'))
-                if cls in objects:
+            if cls in self.action_cls + self.object_cls:
+                cnt = int(eval(f'self.{cls}_count.text()'))
+                if cls in self.object_cls:
                     cnt += value
                     total_obj_cnt += value
-                else:
+                elif cls in self.action_cls:
                     cnt += 1
                     total_act_cnt += 1
-                eval(f"{cls}_count.setText(f'{{cnt}}')")
-        total_object_count.setText(f'{total_obj_cnt}')
-        total_action_count.setText(f'{total_act_cnt}')
+                eval(f"self.{cls}_count.setText(f'{{cnt}}')")
+        self.total_object_count.setText(f'{total_obj_cnt}')
+        self.total_action_count.setText(f'{total_act_cnt}')
+
+    def drop_log(self):  # 로그 JSON 드롭
+        video_date_name = self.video_path.split('\\')[-1]
+        video_date = video_date_name.split('/')[0]
+        video_name = video_date_name.split('/')[-1]
+        log_json_fp = f'logs/{video_date[:-3]}/{video_date}.json'
+        os.makedirs(os.path.split(log_json_fp)[0], exist_ok=True)
+        if os.path.isfile(log_json_fp):
+            with open(log_json_fp, 'r') as log_json_file:
+                log_json_data = OrderedDict(json.load(log_json_file))
+        else:
+            log_json_data = OrderedDict()
+        log_json_data[f'{video_name}'] = {
+            'total': int(self.total_action_count.text()) + int(self.total_object_count.text()),
+            'person': int(self.person_count.text()),
+            'car': int(self.car_count.text()),
+            'boat': int(self.boat_count.text()),
+            'sos': int(self.sos_count.text()),
+            'fall_down': int(self.fall_down_count.text())
+        }
+        with open(log_json_fp, 'w') as drop_json:
+            json.dump(log_json_data, drop_json, ensure_ascii=False, indent='\t')
 
     def visual_process(self): # 영상 가시화 함수
         while True:
