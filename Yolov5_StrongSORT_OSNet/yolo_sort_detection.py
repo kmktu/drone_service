@@ -199,7 +199,10 @@ class ObjectDetection():
             self.annotator = Annotator(im0, line_width=self.line_thickness, example=str(self.names))
 
             # 라벨 카운트 딕셔너리
-            self.label_count = defaultdict(int)
+            # self.label_count = defaultdict(int)
+
+            # ID, 라벨 카운트 리스트
+            self.id_label_count_list = []
 
             # tracker 확인 및 프레임 업데이트
             if hasattr(self.tracker_list[i], 'tracker') and hasattr(self.tracker_list[i].tracker, 'camera_updates'):
@@ -253,35 +256,45 @@ class ObjectDetection():
                         if self.save_vid or self.save_crop or self.show_vid:  # Add bbox to image
                             c = int(cls)  # integer class
                             id = int(id)  # integer id
-                            label = None if self.hide_labels else (f'{id} {self.names[c]}' if self.hide_conf else
-                                                                   (f'{id} {conf:.2f}' if self.hide_class else
-                                                                    f'{id} {self.names[c]} {conf:.2f}'))
-                            color = colors(c, True)
-                            self.annotator.box_label(bbox, label, color=color)
-                            if self.is_seg:
-                                # Mask plotting
-                                self.annotator.masks(
-                                    masks,
-                                    colors=[colors(x, True) for x in det[:, 5]],
-                                    im_gpu=torch.as_tensor(im0, dtype=torch.float16).to(self.device).permute(2, 0, 1).flip(0).contiguous() / 255 if self.retina_masks else im[i]
+                            # 0:person, 2:car, 8:boat in coco
+                            if self.names[c] == "person" or self.names[c] == "car" or self.names[c] == "boat":
+                                label = None if self.hide_labels else (f'{id} {self.names[c]}' if self.hide_conf else
+                                                                       (f'{id} {conf:.2f}' if self.hide_class else
+                                                                        f'{id} {self.names[c]} {conf:.2f}'))
+
+                                color = colors(c, True)
+                                self.annotator.box_label(bbox, label, color=color)
+                                if self.is_seg:
+                                    # Mask plotting
+                                    self.annotator.masks(
+                                        masks,
+                                        colors=[colors(x, True) for x in det[:, 5]],
+                                        im_gpu=torch.as_tensor(im0, dtype=torch.float16).to(self.device).permute(2, 0,
+                                                                                                                 1).flip(
+                                            0).contiguous() / 255 if self.retina_masks else im[i]
                                     )
-                            if self.save_trajectories and self.tracking_method == 'strongsort':
-                                q = output[7]
-                                self.tracker_list[i].trajectory(im0, q, color=color)
-                            # if save_crop:
-                            #     txt_file_name = txt_file_name if (isinstance(path, list) and len(path) > 1) else ''
-                            #     save_one_box(bbox.astype(np.int16), imc,
-                            #                  file=save_dir / 'crops' / txt_file_name / names[
-                            #                      c] / f'{id}' / f'{p.stem}.jpg', BGR=True)
+                                if self.save_trajectories and self.tracking_method == 'strongsort':
+                                    q = output[7]
+                                    self.tracker_list[i].trajectory(im0, q, color=color)
+                                # if save_crop:
+                                #     txt_file_name = txt_file_name if (isinstance(path, list) and len(path) > 1) else ''
+                                #     save_one_box(bbox.astype(np.int16), imc,
+                                #                  file=save_dir / 'crops' / txt_file_name / names[
 
-                            self.label_count[f'{self.names[c]}'] += 1
+                                #                      c] / f'{id}' / f'{p.stem}.jpg', BGR=True)
 
+                                # self.label_count[f'{self.names[c]}'] += 1
+
+                                self.id_label_count_list.append([id, self.names[c]])
+                            else:
+                                continue
             else:
                 pass
                 # tracker_list[i].tracker.pred_n_update_all_tracks()
 
             im0 = self.annotator.result()
-            self.queue.put((im0, self.label_count))
+            # self.queue.put((im0, self.label_count, self.id_label_count_list))
+            self.queue.put((im0, self.id_label_count_list))
 
             # print("show_vid : ", show_vid)
             # if show_vid:
@@ -312,8 +325,8 @@ class ObjectDetection():
             self.prev_frames[i] = self.curr_frames[i]
 
             # Print total time (preprocessing + inference + NMS + tracking)
-        # LOGGER.info(
-        #     f"{s}{'' if len(det) else '(no detections), '}{sum([dt.dt for dt in self.dt if hasattr(dt, 'dt')]) * 1E3:.1f}ms")
+        LOGGER.info(
+            f"{'' if len(det) else '(no detections), '}{sum([dt.dt for dt in self.dt if hasattr(dt, 'dt')]) * 1E3:.1f}ms")
 
         # Print results
         t = tuple(x.t / self.seen * 1E3 for x in self.dt)  # speeds per image

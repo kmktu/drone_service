@@ -242,15 +242,16 @@ class init_layout(QWidget):
 
                 # ADD 행동 큐
                 self.action_detect_q = Queue() # 행동 추론 영상의 frame이 담길 Queue
+                
+                # object tracking에 사용되는 리스트 및 초기화 값
+                self.track_twenty_four_frame_list = []  # 240 프레임, 10초(24fps 기준)동안 저장되는 ID 값 리스트
+                self.track_count = 0    # 프레임 카운트
+                self.prev_frame_class_list = [] # 전 프레임 클래스 저장 리스트
 
                 self.action_stop_pipe_parent, self.action_stop_pipe_child = Pipe()
 
                 self.frame_reader_p = Process(target=lv.read_frames, args=(self.frame_q, self.detect_q, self.video_path),
                                               name="READ_FRAME_P") # 쓰레드를 통한 영상 프레임 읽기(원본 영상 프레임은 frame_q에, 추론 영상 프레임은 detect_q에 쌓임)
-
-                # self.frame_reader_p = Process(target=self.model_init.read_frames, args=(self.frame_q, self.detect_q,
-                #                                                                           video_path),
-                #                               name="READ_FRAME_P")
 
                 executor = ThreadPoolExecutor(1) # 쓰레드를 통한 원본 영상 및 추론 영상 프레임 가시화
                 executor.submit(self.visual_process)
@@ -259,10 +260,7 @@ class init_layout(QWidget):
                 self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.action_detect_q, self.action_stop_pipe_child,
                                                                                      self.video_path),
                                                name="SLOWFAST_FRAME_P")
-                # self.frame_reader_p2 = Process(target=self.load_model.slowfast_read_frames, args=(self.action_detect_q,
-                #                                                                                   video_path),
-                #                                name="SLOWFAST_FRAME_P")
-                #
+                
                 executor2 = ThreadPoolExecutor(1)  # 쓰레드를 통한 원본 영상 및 추론 영상 프레임 가시화
                 executor2.submit(self.visual_process2)
 
@@ -326,19 +324,19 @@ class init_layout(QWidget):
 
     def cls_count(self, detect_count_dict: dict):  # Object Count 갱신 함수
         # detect_count_dict에 포함된 Object 개수 더하기
-        total_obj_cnt = int(self.total_object_count.text())
+        # total_obj_cnt = int(self.total_object_count.text())
         total_act_cnt = int(self.total_action_count.text())
         for cls, value in detect_count_dict.items():
             if cls in self.action_cls + self.object_cls:
                 cnt = int(eval(f'self.{cls}_count.text()'))
-                if cls in self.object_cls:
-                    cnt += value
-                    total_obj_cnt += value
-                elif cls in self.action_cls:
+                # if cls in self.object_cls:
+                #     cnt += value
+                #     total_obj_cnt += value
+                if cls in self.action_cls:
                     cnt += 1
                     total_act_cnt += 1
                 eval(f"self.{cls}_count.setText(f'{{cnt}}')")
-        self.total_object_count.setText(f'{total_obj_cnt}')
+        # self.total_object_count.setText(f'{total_obj_cnt}')
         self.total_action_count.setText(f'{total_act_cnt}')
 
     def drop_log(self):  # 로그 JSON 드롭
@@ -363,6 +361,52 @@ class init_layout(QWidget):
         with open(log_json_fp, 'w') as drop_json:
             json.dump(log_json_data, drop_json, ensure_ascii=False, indent='\t')
 
+    def yolo_object_tracking_count(self, id_label_count_list):
+        total_obj_cnt = int(self.total_object_count.text())
+
+        for i, item in enumerate(id_label_count_list):
+            if self.track_count == 0:
+                id = item[0]
+                label = item[1]
+                if label in self.object_cls:
+                    cnt = int(eval(f'self.{label}_count.text()'))
+                    cnt += 1
+                    total_obj_cnt += 1
+                    eval(f"self.{label}_count.setText(f'{{cnt}}')")
+                if item not in self.track_twenty_four_frame_list:
+                    self.track_twenty_four_frame_list.append(item)
+                if item not in self.prev_frame_class_list:
+                    self.prev_frame_class_list.append(item)
+            else:
+                # 전 프레임 클래스 리스트 안에 있을 경우(True), 24프레임 리스트 안에 있을 경우(True)
+                if item in self.prev_frame_class_list and item in self.track_twenty_four_frame_list:
+                    continue
+                # 전 프레임 클래스 리스트 안에 없을 경우(False), 24프레임 리스트 안에 있을 경우(True)
+                elif item not in self.prev_frame_class_list and item in self.track_twenty_four_frame_list:
+                    continue
+                # 전 프레임 클래스 리스트 안에 있을 경우(True), 24프레임 리스트 안에 없을 경우(False)
+                elif item in self.prev_frame_class_list and item not in self.track_twenty_four_frame_list:
+                    self.track_twenty_four_frame_list.append(item)
+                    continue
+                else:
+                    id = item[0]
+                    label = item[1]
+                    if label in self.object_cls:
+                        cnt = int(eval(f'self.{label}_count.text()'))
+                        cnt += 1
+                        total_obj_cnt += 1
+                        eval(f"self.{label}_count.setText(f'{{cnt}}')")
+                        self.track_twenty_four_frame_list.append(item)
+
+        self.track_count += 1
+        # 240 프레임 동안 저장된 id 초기화(0~239)
+        if self.track_count == 239:
+            self.track_count = 0
+            self.track_twenty_four_frame_list.clear()
+        self.prev_frame_class_list = id_label_count_list
+        self.total_object_count.setText(f'{total_obj_cnt}')
+
+
     def visual_process(self): # 영상 가시화 함수
         while True:
             self.vis1_ready = False
@@ -377,8 +421,12 @@ class init_layout(QWidget):
                         break
                 self.original_video.setImage(frame)
                 self.detected_video.setImage(detect_frame)
-                detect_count = detect_result[1]  # detect_q 중 라벨 수 dict
-                self.cls_count(detect_count)
+                # detect_count = detect_result[1]  # detect_q 중 라벨 수 dict
+                # self.cls_count(detect_count)
+                
+                # object tracking에 맞게 클래스 카운트 변경
+                id_label_count_list = detect_result[1]
+                self.yolo_object_tracking_count(id_label_count_list=id_label_count_list)
                 time.sleep(0.04)
             else:
                 continue
@@ -393,7 +441,6 @@ class init_layout(QWidget):
                 self.recognize_frame = self.action_detect_q.get()
                 if type(self.recognize_frame) == dict:
                     ## 행동 confidence 값
-                    # 이거 이용해서 count된 값 보여주면 될듯
                     action_count = self.recognize_frame
                     self.cls_count(action_count)
                 else:
