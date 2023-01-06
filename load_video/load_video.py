@@ -8,12 +8,12 @@ from SlowFast.slowfast.utils.misc import get_class_names
 
 from multiprocessing import active_children
 
-def read_frames(frame_q, detect_q, video_path): # 영상의 프레임을 읽어와서 모델 추론을 수행하는 함수
+def read_frames(frame_q, detect_q, video_path, object_model_init_child_pipe): # 영상의 프레임을 읽어와서 모델 추론을 수행하는 함수
     inference_model_yolo = yolo_sort_detection.ObjectDetection()
     reader = cv2.VideoCapture(video_path)
-
     nframes = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
 
+    object_model_init_child_pipe.send("model_init_done")
     for ii in range(nframes):   # 영상의 마지막 프레임까지 반복
         while frame_q.qsize() > 64: # frame_q에 50개 이상 frame이 쌓일 경우 sleep
             time.sleep(1)
@@ -26,7 +26,7 @@ def read_frames(frame_q, detect_q, video_path): # 영상의 프레임을 읽어�
         inference_img = inference_model_yolo.get_data()
         detect_q.put(inference_img)
 
-def slowfast_read_frames(action_detect_q, action_stop_pipe_child, video_path):
+def slowfast_read_frames(action_detect_q, action_stop_pipe_child, video_path, action_model_init_child_pipe):
     reader = cv2.VideoCapture(video_path)
 
     nframes = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -40,6 +40,7 @@ def slowfast_read_frames(action_detect_q, action_stop_pipe_child, video_path):
 
     frames_list = []
 
+    action_model_init_child_pipe.send("model_init_done")
     for ii in range(nframes):  # 영상의 마지막 프레임까지 반복
         _, frame = reader.read()
 

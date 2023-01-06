@@ -1,17 +1,13 @@
 import cv2
 import load_video.load_video as lv
 from concurrent.futures import ThreadPoolExecutor
-
 from multiprocessing import Process, Queue, Pipe
-
 from draw.draw_camera_groupbox import draw_camera_object_groupbox, draw_camera_action_groupbox
 from draw.draw_month_barchart import draw_month_barchart
-# from draw.draw_file_list import draw_file_list
 from load_video.ImageViewer import *
 import time
 import os
 from PyQt5.QtCore import Qt
-
 import json
 from collections import OrderedDict
 
@@ -108,6 +104,11 @@ class init_layout(QWidget):
         self.play_video_qlabel.setText("Video")
         self.play_video_qlabel.setFixedSize(68, 20)
 
+        self.model_init_log = QLabel(self)
+        self.model_init_log.setFont(QFont('Arial', 10))
+        self.model_init_log.setText("State : Waiting...")
+        # self.model_init_log.setFixedSize(68, 20)
+
         self.video_sync_qlabel = QLabel(self)
         self.video_sync_qlabel.setFont(QFont('Arial', 13))
         self.video_sync_qlabel.setText("Video Sync")
@@ -119,6 +120,7 @@ class init_layout(QWidget):
 
         # Qlabel 레이아웃 위젯
         video_qlabel_layout.addWidget(self.play_video_qlabel, alignment=Qt.AlignLeft)
+        video_qlabel_layout.addWidget(self.model_init_log, alignment=Qt.AlignCenter)
 
         # 영상 싱크 맞추기 레이아웃 위젯
         video_sync_layout.setAlignment(Qt.AlignRight)
@@ -247,10 +249,6 @@ class init_layout(QWidget):
         self.video_path = None
         self.init_count()
 
-        # ADD model init
-        # self.model_init = lv.LoadVideo_model()
-        # print("model init !!!")
-        # self.inference_model_yolo, self.inference_model_slowfast = lv.model_init()
 
     def video_start(self): # 영상 재생 함수
         if self.file_list_widget.currentItem() == None: # listwidget 아이템 미선택시 바로 리턴
@@ -264,6 +262,7 @@ class init_layout(QWidget):
 
             if self.video_load: # 영상 일시정지 상태에서 다시 재생시
                 self.video_play = True
+                self.model_init_log.setText("State : Start Video")
             else:               # 초기 영상 Loading
                 self.video_load = True
                 self.video_play = True
@@ -282,8 +281,11 @@ class init_layout(QWidget):
                 self.prev_frame_class_list = [] # 전 프레임 클래스 저장 리스트
 
                 self.action_stop_pipe_parent, self.action_stop_pipe_child = Pipe()
+                self.object_model_init_parent_pipe, self.object_model_init_child_pipe = Pipe()
+                self.action_model_init_parent_pipe, self.action_model_init_child_pipe = Pipe()
 
-                self.frame_reader_p = Process(target=lv.read_frames, args=(self.frame_q, self.detect_q, self.video_path),
+                self.frame_reader_p = Process(target=lv.read_frames, args=(self.frame_q, self.detect_q, self.video_path,
+                                                                           self.object_model_init_child_pipe),
                                               name="READ_FRAME_P") # 쓰레드를 통한 영상 프레임 읽기(원본 영상 프레임은 frame_q에, 추론 영상 프레임은 detect_q에 쌓임)
 
                 executor = ThreadPoolExecutor(1) # 쓰레드를 통한 원본 영상 및 추론 영상 프레임 가시화
@@ -291,7 +293,7 @@ class init_layout(QWidget):
 
                 # ADD 행동 프로세스
                 self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.action_detect_q, self.action_stop_pipe_child,
-                                                                                     self.video_path),
+                                                                                     self.video_path, self.action_model_init_child_pipe),
                                                name="SLOWFAST_FRAME_P")
                 
                 executor2 = ThreadPoolExecutor(1)  # 쓰레드를 통한 원본 영상 및 추론 영상 프레임 가시화
@@ -302,12 +304,13 @@ class init_layout(QWidget):
 
                 self.frame_reader_p2.daemon = False
                 self.frame_reader_p2.start()
-
-                print("start")
+                self.model_init_log.setText("State : Model Initializing...")
+                executor3 = ThreadPoolExecutor(1)
+                executor3.submit(self.state_log)
 
     def video_pause(self): # 영상 일시정지 함수
         self.video_play = False
-        print("pause")
+        self.model_init_log.setText("State : Pause Video")
 
     def video_stop(self): # 영상 초기화 함수
         self.frame_q = None
@@ -332,9 +335,9 @@ class init_layout(QWidget):
         self.vis1_ready = False
         self.vis2_ready = False
 
-        self.drop_log()
+        self.model_init_log.setText("State : Stop Video")
 
-        print("stop")
+        self.drop_log()
 
     def init_count(self):  # 영상 정지 후 시작시에 Count를 0으로 초기화 및 변수 할당
         # 클래스 정의
@@ -519,3 +522,20 @@ class init_layout(QWidget):
             self.video_sync = False
         else:
             pass
+
+    def state_log(self):
+        object_model_init_flag = False
+        action_model_init_flag = False
+        while True:
+            if str(self.object_model_init_parent_pipe.poll()):
+                if self.object_model_init_parent_pipe.recv() == "model_init_done":
+                    self.model_init_log.setText("State : Object Model Init... Done")
+                    object_model_init_flag = True
+            if str(self.action_model_init_parent_pipe.poll()):
+                if self.action_model_init_parent_pipe.recv() == "model_init_done":
+                    self.model_init_log.setText("State : Action Model Init... Done")
+                    action_model_init_flag = True
+            if object_model_init_flag and action_model_init_flag:
+                self.model_init_log.setText("State : All Model Init... Done, Start Video")
+                break
+
