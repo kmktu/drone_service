@@ -15,8 +15,8 @@ from PyQt5.QtCore import Qt
 import json
 from collections import OrderedDict
 
-"""Dev Options"""
-video_sync = True  # Sync 기능 On/Off
+# """Dev Options"""
+# video_sync = True  # Sync 기능 On/Off
 
 
 class init_layout(QWidget):
@@ -25,6 +25,17 @@ class init_layout(QWidget):
         self.video_load = False # video 로드 여부
         self.video_play = False # video 재생 여부
         self.last_video = "" # 마지막 재생 영상 기록
+
+        self.video_sync = True
+
+        # Radio button video_sync
+        self.btn_video_sync_true = QRadioButton('Yes', self)
+        self.btn_video_sync_true.setChecked(True)
+        self.btn_video_sync_true.clicked.connect(self.video_sync_clicked)
+
+        self.btn_video_sync_false = QRadioButton('No', self)
+        self.btn_video_sync_false.clicked.connect(self.video_sync_clicked)
+
 
         self.original_video = ImageViewer() # 원본 영상 Viewer
         self.detected_video = ImageViewer() # 추론 영상 Viewer
@@ -63,6 +74,9 @@ class init_layout(QWidget):
         main_layout = QVBoxLayout() # 메인 레이아웃(비디오영역, 비디오 컨트롤러 영역, 통계 영역)
 
         all_play_video_layout = QVBoxLayout() # 전체 비디오 레이아웃(영상, 라벨)
+        video_qlabel_layout = QHBoxLayout()
+        video_sync_layout = QHBoxLayout()   # 비디오 싱크 레이아웃
+        video_top_line_layout = QVBoxLayout()
         play_video_label_layout = QHBoxLayout() # 비디오 라벨 레이아웃(라벨)
         play_video_layout = QHBoxLayout() # 비디오 레이아웃(원본 영상, 추론 영상)
 
@@ -94,12 +108,26 @@ class init_layout(QWidget):
         self.play_video_qlabel.setText("Video")
         self.play_video_qlabel.setFixedSize(68, 20)
 
+        self.video_sync_qlabel = QLabel(self)
+        self.video_sync_qlabel.setFont(QFont('Arial', 13))
+        self.video_sync_qlabel.setText("Video Sync")
+        self.video_sync_qlabel.setFixedSize(100, 20)
+
         all_play_video_line1 = QFrame()
         all_play_video_line1.setFrameShape(QFrame.HLine)
         all_play_video_line1.setFrameShadow(QFrame.Sunken)
 
-        all_play_video_layout.addWidget(self.play_video_qlabel)
-        all_play_video_layout.addWidget(all_play_video_line1)
+        # Qlabel 레이아웃 위젯
+        video_qlabel_layout.addWidget(self.play_video_qlabel, alignment=Qt.AlignLeft)
+
+        # 영상 싱크 맞추기 레이아웃 위젯
+        video_sync_layout.setAlignment(Qt.AlignRight)
+        video_sync_layout.addWidget(self.video_sync_qlabel)
+        video_sync_layout.addWidget(self.btn_video_sync_true)
+        video_sync_layout.addWidget(self.btn_video_sync_false)
+
+        # 영상 부분 라인 그리기
+        video_top_line_layout.addWidget(all_play_video_line1)
 
         # 영상 부분 라인 그리기
         play_video_line2 = QFrame()
@@ -187,6 +215,11 @@ class init_layout(QWidget):
         information_layout.addWidget(self.month_barchart_widget)
 
         # 레이아웃 추가
+        video_qlabel_layout.addLayout(video_sync_layout)
+        # all_play_video_layout.addLayout(video_qlabel_layout)
+        # all_play_video_layout.addLayout(video_sync_layout)
+        all_play_video_layout.addLayout(video_qlabel_layout)
+        all_play_video_layout.addLayout(video_top_line_layout)
         all_play_video_layout.addLayout(play_video_label_layout)
         all_play_video_layout.addLayout(play_video_layout)
         all_play_video_layout.addLayout(play_video_btn_layout)
@@ -416,7 +449,7 @@ class init_layout(QWidget):
                 detect_result = self.detect_q.get()
                 detect_frame = self.convert_cv_qt(detect_result[0])  # detect_q 중 frame
                 self.vis1_ready = True
-                while not self.vis2_ready and video_sync:
+                while not self.vis2_ready and self.video_sync:
                     if self.vis1_ready and self.vis2_ready or self.vis_terminate:
                         break
                 self.original_video.setImage(frame)
@@ -452,7 +485,7 @@ class init_layout(QWidget):
             if action_detect_q_flag:
                 if type(self.recognize_frame) != dict:
                     self.vis2_ready = True
-                    while not self.vis1_ready and video_sync:
+                    while not self.vis1_ready and self.video_sync:
                         if self.vis1_ready and self.vis2_ready or self.vis_terminate:
                             break
                     self.recognize_video.setImage(self.recognize_frame)
@@ -478,3 +511,11 @@ class init_layout(QWidget):
                 _, extension = os.path.splitext(file)
                 if extension == ".mp4":
                     self.file_list_widget.addItem(root + "/" + file)
+
+    def video_sync_clicked(self):
+        if self.btn_video_sync_true.isChecked():
+            self.video_sync = True
+        elif self.btn_video_sync_false.isChecked():
+            self.video_sync = False
+        else:
+            pass
