@@ -11,10 +11,6 @@ from PyQt5.QtCore import Qt
 import json
 from collections import OrderedDict
 
-# """Dev Options"""
-# video_sync = True  # Sync 기능 On/Off
-
-
 class init_layout(QWidget):
     def __init__(self): # UI 초기화
         super().__init__()
@@ -218,8 +214,6 @@ class init_layout(QWidget):
 
         # 레이아웃 추가
         video_qlabel_layout.addLayout(video_sync_layout)
-        # all_play_video_layout.addLayout(video_qlabel_layout)
-        # all_play_video_layout.addLayout(video_sync_layout)
         all_play_video_layout.addLayout(video_qlabel_layout)
         all_play_video_layout.addLayout(video_top_line_layout)
         all_play_video_layout.addLayout(play_video_label_layout)
