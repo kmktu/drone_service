@@ -78,3 +78,6 @@ fabric.properties
 /SlowFast/configs/AVA/c2/SLOWFAST_32x2_R101_50_50.pkl
 /SlowFast/DEMO_TEST/model_final_280758.pkl
 /stdout.log
+/dist/
+/build/
+/backup/

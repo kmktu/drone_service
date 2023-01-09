@@ -1,7 +1,5 @@
 import time
 import cv2
-# from yolov5 import yolo_detection
-# from Yolov5_StrongSORT_OSNet.yolov5 import yolo_detection
 from Yolov5_StrongSORT_OSNet import yolo_sort_detection
 from SlowFast.slowfast_detection import SlowFastDetection
 from SlowFast.slowfast.utils.misc import get_class_names
@@ -20,8 +18,6 @@ def read_frames(frame_q, detect_q, video_path, object_model_init_child_pipe): # 
         _, frame = reader.read()
 
         frame_q.put(frame)
-        # 모델 추론부
-        # inference_model_yolo.inference_img(frame)
         inference_model_yolo.inference_tracking(frame)
         inference_img = inference_model_yolo.get_data()
         detect_q.put(inference_img)
