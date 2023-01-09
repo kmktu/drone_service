@@ -313,14 +313,6 @@ class init_layout(QWidget):
         self.model_init_log.setText("State : Pause Video")
 
     def video_stop(self): # 영상 초기화 함수
-        self.frame_q = None
-        self.detect_q = None
-        self.action_detect_q = None
-        self.video_load = False
-        self.video_play = False
-        if self.frame_reader_p.is_alive():
-            self.frame_reader_p.terminate()
-            
         # pipe 신호를 이용해서 프로세스 종료
         if self.frame_reader_p2.is_alive():
             self.action_stop_pipe_parent.send("stop")
@@ -330,6 +322,14 @@ class init_layout(QWidget):
                         self.frame_reader_p2.terminate()
                         break
 
+        self.frame_q = None
+        self.detect_q = None
+        self.action_detect_q = None
+        self.video_load = False
+        self.video_play = False
+        if self.frame_reader_p.is_alive():
+            self.frame_reader_p.terminate()
+            
         # Sync 플래그 초기화
         self.vis_terminate = True  # Sync 반복문 정지 플래그 활성화
         self.vis1_ready = False
@@ -337,7 +337,7 @@ class init_layout(QWidget):
 
         self.model_init_log.setText("State : Stop Video")
 
-        self.drop_log()
+        # self.drop_log()
 
     def init_count(self):  # 영상 정지 후 시작시에 Count를 0으로 초기화 및 변수 할당
         # 클래스 정의
