@@ -268,12 +268,12 @@ class init_layout(QWidget):
                 self.video_play = True
                 self.vis_terminate = False  # Sync 반복문 정지 플래그 비활성화
                 self.init_count()  # Count 0으로 초기화
-
-                self.frame_q = Queue()  # 선택된 영상의 frame이 담길 Queue
-                self.detect_q = Queue() # 추론된 영상의 frame이 담길 Queue
-
-                # ADD 행동 큐
-                self.action_detect_q = Queue() # 행동 추론 영상의 frame이 담길 Queue
+                
+                # 모델 사용 시 Queue에 계속 쌓이게 되어 메모리 이슈가 발생
+                # 최대 사이즈를 slowfast에서 한꺼번에 나오는 64 프레임 을 기준으로 변경, 메모리 이슈에 의해 처리함
+                self.frame_q = Queue(maxsize=64)  # 선택된 영상의 frame이 담길 Queue
+                self.detect_q = Queue(maxsize=64) # 추론된 영상의 frame이 담길 Queue
+                self.action_detect_q = Queue(maxsize=64) # 행동 추론 영상의 frame이 담길 Queue
                 
                 # object tracking에 사용되는 리스트 및 초기화 값
                 self.track_twenty_four_frame_list = []  # 240 프레임, 10초(24fps 기준)동안 저장되는 ID 값 리스트
@@ -414,13 +414,13 @@ class init_layout(QWidget):
                 if item not in self.prev_frame_class_list:
                     self.prev_frame_class_list.append(item)
             else:
-                # 전 프레임 클래스 리스트 안에 있을 경우(True), 24프레임 리스트 안에 있을 경우(True)
+                # 전 프레임 클래스 리스트 안에 있을 경우(True), 240프레임 리스트 안에 있을 경우(True)
                 if item in self.prev_frame_class_list and item in self.track_twenty_four_frame_list:
                     continue
-                # 전 프레임 클래스 리스트 안에 없을 경우(False), 24프레임 리스트 안에 있을 경우(True)
+                # 전 프레임 클래스 리스트 안에 없을 경우(False), 240프레임 리스트 안에 있을 경우(True)
                 elif item not in self.prev_frame_class_list and item in self.track_twenty_four_frame_list:
                     continue
-                # 전 프레임 클래스 리스트 안에 있을 경우(True), 24프레임 리스트 안에 없을 경우(False)
+                # 전 프레임 클래스 리스트 안에 있을 경우(True), 240프레임 리스트 안에 없을 경우(False)
                 elif item in self.prev_frame_class_list and item not in self.track_twenty_four_frame_list:
                     self.track_twenty_four_frame_list.append(item)
                     continue
