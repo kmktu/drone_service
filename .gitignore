@@ -81,3 +81,4 @@ fabric.properties
 /dist/
 /build/
 /backup/
+/detectron2-windows/
