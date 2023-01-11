@@ -9,7 +9,7 @@ import time
 import os
 from PyQt5.QtCore import Qt
 import json
-from collections import OrderedDict
+from collections import defaultdict, OrderedDict
 
 class init_layout(QWidget):
     def __init__(self): # UI 초기화
@@ -20,18 +20,8 @@ class init_layout(QWidget):
 
         self.video_sync = True
 
-        # Radio button video_sync
-        self.btn_video_sync_true = QRadioButton('Yes', self)
-        self.btn_video_sync_true.setChecked(True)
-        self.btn_video_sync_true.clicked.connect(self.video_sync_clicked)
-
-        self.btn_video_sync_false = QRadioButton('No', self)
-        self.btn_video_sync_false.clicked.connect(self.video_sync_clicked)
-
-
         self.original_video = ImageViewer() # 원본 영상 Viewer
         self.detected_video = ImageViewer() # 추론 영상 Viewer
-
         self.recognize_video = ImageViewer() # action Viewer
 
         self.video_start_btn = QPushButton("Start", self) # 영상 재생 버튼
@@ -40,6 +30,8 @@ class init_layout(QWidget):
         self.video_pause_btn.clicked.connect(self.video_pause)
         self.video_stop_btn = QPushButton("Stop", self) # 영상 초기화 버튼
         self.video_stop_btn.clicked.connect(self.video_stop)
+        self.reload_stat_btn = QPushButton("Refresh", self)  # 통계 불러오기 버튼
+        self.reload_stat_btn.clicked.connect(self.reload_stat)
 
         # 파일리스트 경로 지정 버튼
         self.video_file_list_btn = QPushButton("ADD File List Path", self)
@@ -62,6 +54,10 @@ class init_layout(QWidget):
         file_list_btn_font = self.video_file_list_btn.font()
         file_list_btn_font.setPointSize(font_size)
         self.video_file_list_btn.setFont(file_list_btn_font)
+
+        reload_stat_btn_font = self.reload_stat_btn.font()
+        reload_stat_btn_font.setPointSize(font_size)
+        self.reload_stat_btn.setFont(reload_stat_btn_font)
 
         main_layout = QVBoxLayout() # 메인 레이아웃(비디오영역, 비디오 컨트롤러 영역, 통계 영역)
 
@@ -93,6 +89,7 @@ class init_layout(QWidget):
         information_widget = QWidget()
         information_widget.setFixedHeight(300) # 높이 300 고정
         information_layout = QHBoxLayout() # 통계 레이아웃(객체 통계, 액션 통계, 월별 통계)
+        information_label_layout = QHBoxLayout()  # 통계 제목 레이아웃(통계 제목, 정보 새로 고침 버튼)
 
         # 영상, 영상 라벨 전체 부분
         self.play_video_qlabel = QLabel(self)
@@ -119,10 +116,19 @@ class init_layout(QWidget):
         video_qlabel_layout.addWidget(self.model_init_log, alignment=Qt.AlignCenter)
 
         # 영상 싱크 맞추기 레이아웃 위젯
-        video_sync_layout.setAlignment(Qt.AlignRight)
-        video_sync_layout.addWidget(self.video_sync_qlabel)
-        video_sync_layout.addWidget(self.btn_video_sync_true)
-        video_sync_layout.addWidget(self.btn_video_sync_false)
+        self.radio_box_sync = QGroupBox()
+        self.radio_box_sync_layout = QHBoxLayout()
+        self.radio_box_sync.setLayout(self.radio_box_sync_layout)
+        self.radio_box_sync_layout.addWidget(self.video_sync_qlabel)
+        self.btn_video_sync_true = QRadioButton('Yes')
+        self.btn_video_sync_true.setChecked(True)
+        self.btn_video_sync_true.clicked.connect(self.video_sync_clicked)
+        self.radio_box_sync_layout.addWidget(self.btn_video_sync_true)
+
+        self.btn_video_sync_false = QRadioButton('No')
+        self.btn_video_sync_false.clicked.connect(self.video_sync_clicked)
+        self.radio_box_sync_layout.addWidget(self.btn_video_sync_false)
+        video_qlabel_layout.addWidget(self.radio_box_sync, alignment=Qt.AlignRight)
 
         # 영상 부분 라인 그리기
         video_top_line_layout.addWidget(all_play_video_line1)
@@ -189,17 +195,50 @@ class init_layout(QWidget):
         play_video_btn_layout.addWidget(self.video_stop_btn)  # 영상 초기화 버튼
 
         # 정보 레이아웃 전체
-
         self.information_qlabel = QLabel(self)
         self.information_qlabel.setFont(QFont('Arial', 15))
         self.information_qlabel.setText("Information")
         self.information_qlabel.setFixedSize(100, 20)
 
+        self.information_select_qlabel = QLabel(self)
+        self.information_select_qlabel.setFont(QFont('Arial', 13))
+        self.information_select_qlabel.setText("Info Type")
+        self.information_select_qlabel.setFixedSize(100, 20)
+
         information_line1 = QFrame()
         information_line1.setFrameShape(QFrame.HLine)
         information_line1.setFrameShadow(QFrame.Sunken)
 
-        all_information_layout.addWidget(self.information_qlabel)
+        #  Radio button select info
+        self.radio_box_stat = QGroupBox()
+        self.radio_box_stat_layout = QHBoxLayout()
+        self.radio_box_stat.setLayout(self.radio_box_stat_layout)
+        self.radio_box_stat_layout.addWidget(self.information_select_qlabel)
+
+        self.information_select_total = QRadioButton('Total')
+        self.information_select_total.setChecked(True)
+        self.information_select_total.clicked.connect(self.change_stat)
+        self.radio_box_stat_layout.addWidget(self.information_select_total)
+
+        self.information_select_object = QRadioButton('Object')
+        self.information_select_object.clicked.connect(self.change_stat)
+        self.radio_box_stat_layout.addWidget(self.information_select_object)
+
+        self.information_select_action = QRadioButton('Action')
+        self.information_select_action.clicked.connect(self.change_stat)
+        self.radio_box_stat_layout.addWidget(self.information_select_action)
+        self.radio_box_stat_layout.addWidget(self.reload_stat_btn)
+
+        self.information_select_qlabel.setMaximumWidth(120)
+        self.information_select_total.setMaximumWidth(120)
+        self.information_select_object.setMaximumWidth(120)
+        self.information_select_action.setMaximumWidth(120)
+        self.reload_stat_btn.setMaximumWidth(120)
+
+        information_label_layout.addWidget(self.information_qlabel, alignment=Qt.AlignLeft)
+        information_label_layout.addWidget(self.radio_box_stat, alignment=Qt.AlignRight)
+
+        all_information_layout.addLayout(information_label_layout)
         all_information_layout.addWidget(information_line1)
 
         # information_layout widget
@@ -242,6 +281,7 @@ class init_layout(QWidget):
 
         self.video_path = None
         self.init_count()
+        self.init_stat()
 
 
     def video_start(self): # 영상 재생 함수
@@ -331,7 +371,47 @@ class init_layout(QWidget):
 
         self.model_init_log.setText("State : Stop Video")
 
-        # self.drop_log()
+        self.drop_log()
+
+    def init_stat(self):
+        print('init')
+
+    @staticmethod
+    def reload_stat():
+        total_json_fp = f'logs/log_total.json'
+        total_dict = defaultdict(dict)
+        for (root, dirs, files) in os.walk('logs'):
+            for file in files:
+                date = root.split('\\')[-1]
+                if f'd{date}' not in total_dict.keys():
+                    total_dict[f'd{date}'] = {
+                        'total_action': 0,
+                        'total_object': 0,
+                        'person': 0,
+                        'car': 0,
+                        'boat': 0,
+                        'sos': 0,
+                        'fall_down': 0
+                    }
+                with open(f'{root}/{file}') as json_file:
+                    json_data = json.load(json_file)
+                    for v in json_data.values():
+                        for key, value in v.items():
+                            total_dict[f'd{date}'][key] += value
+        with open(total_json_fp, 'w') as total_json_file:
+            total_json_data = OrderedDict(total_dict)
+            json.dump(total_json_data, total_json_file, ensure_ascii=False, indent='\t')
+
+
+    def change_stat(self):
+        if self.information_select_total.isChecked():
+            print('total')
+        elif self.information_select_object.isChecked():
+            print('object')
+        elif self.information_select_action.isChecked():
+            print('action')
+        else:
+            pass
 
     def init_count(self):  # 영상 정지 후 시작시에 Count를 0으로 초기화 및 변수 할당
         # 클래스 정의
@@ -381,7 +461,8 @@ class init_layout(QWidget):
         else:
             log_json_data = OrderedDict()
         log_json_data[f'{video_name}'] = {
-            'total': int(self.total_action_count.text()) + int(self.total_object_count.text()),
+            'total_action': int(self.total_action_count.text()),
+            'total_object': int(self.total_object_count.text()),
             'person': int(self.person_count.text()),
             'car': int(self.car_count.text()),
             'boat': int(self.boat_count.text()),
