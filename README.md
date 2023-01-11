@@ -1,5 +1,5 @@
 #Drone Service
-Object Detection + Action Recognition 모델을 활용한 드론 고도 영상 탐지 서비스
+* Object Detection + Action Recognition 모델을 활용한 드론 고도 영상 탐지 서비스
 
 ### Requirements
 * [Yolov5_StrongSORT_OSNet](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet)
