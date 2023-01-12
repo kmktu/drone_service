@@ -76,7 +76,7 @@ class init_layout(QWidget):
         empty_widget.setFixedHeight(15)
         empty_box_layout = QHBoxLayout()
         empty_box_layout.addWidget(empty_widget)
-        
+
         empty_widget2 = QWidget()  # 파일리스트와 통계부분 띄우기 위함
         empty_widget2.setFixedHeight(15)
         empty_box_layout2 = QHBoxLayout()
@@ -140,7 +140,7 @@ class init_layout(QWidget):
         play_video_line2.setFrameShadow(QFrame.Sunken)
         play_video_line3.setFrameShape(QFrame.VLine)
         play_video_line3.setFrameShadow(QFrame.Sunken)
-        
+
         # 영상 부분 위젯
         play_video_layout.addWidget(self.original_video) # 원본 영상
         play_video_layout.addWidget(play_video_line2)
@@ -180,12 +180,12 @@ class init_layout(QWidget):
 
         all_file_list_layout.addWidget(self.file_list_qlabel)
         all_file_list_layout.addWidget(all_file_list_line1)
-        
+
         # 파일리스트 위젯
         self.file_list_widget = QListWidget()
         self.file_list_widget.currentItemChanged.connect(self.chk_current_item_changed) # listwidget 아이템 선택시 이벤트
         file_list_layout.addWidget(self.file_list_widget)
-        
+
         # 파일리스트 버튼 위젯
         file_list_btn_layout.addWidget(self.video_file_list_btn)
 
@@ -302,13 +302,13 @@ class init_layout(QWidget):
                 self.video_play = True
                 self.vis_terminate = False  # Sync 반복문 정지 플래그 비활성화
                 self.init_count()  # Count 0으로 초기화
-                
+
                 # 모델 사용 시 Queue에 계속 쌓이게 되어 메모리 이슈가 발생
                 # 최대 사이즈를 slowfast에서 한꺼번에 나오는 64 프레임 을 기준으로 변경, 메모리 이슈에 의해 처리함
                 self.frame_q = Queue(maxsize=64)  # 선택된 영상의 frame이 담길 Queue
                 self.detect_q = Queue(maxsize=64) # 추론된 영상의 frame이 담길 Queue
                 self.action_detect_q = Queue(maxsize=64) # 행동 추론 영상의 frame이 담길 Queue
-                
+
                 # object tracking에 사용되는 리스트 및 초기화 값
                 self.track_twenty_four_frame_list = []  # 240 프레임, 10초(24fps 기준)동안 저장되는 ID 값 리스트
                 self.track_count = 0    # 프레임 카운트
@@ -329,7 +329,7 @@ class init_layout(QWidget):
                 self.frame_reader_p2 = Process(target=lv.slowfast_read_frames, args=(self.action_detect_q, self.action_stop_pipe_child,
                                                                                      self.video_path, self.action_model_init_child_pipe),
                                                name="SLOWFAST_FRAME_P")
-                
+
                 executor2 = ThreadPoolExecutor(1)  # 쓰레드를 통한 원본 영상 및 추론 영상 프레임 가시화
                 executor2.submit(self.visual_process2)
 
@@ -344,6 +344,7 @@ class init_layout(QWidget):
 
     def video_pause(self): # 영상 일시정지 함수
         self.video_play = False
+        # self.action_stop_pipe_parent.send("pause")
         self.model_init_log.setText("State : Pause Video")
 
     def video_stop(self): # 영상 초기화 함수
@@ -361,9 +362,9 @@ class init_layout(QWidget):
         self.action_detect_q = None
         self.video_load = False
         self.video_play = False
-        if self.frame_reader_p.is_alive():
-            self.frame_reader_p.terminate()
-            
+        # if self.frame_reader_p.is_alive():
+        #     self.frame_reader_p.terminate()
+
         # Sync 플래그 초기화
         self.vis_terminate = True  # Sync 반복문 정지 플래그 활성화
         self.vis1_ready = False
@@ -534,7 +535,7 @@ class init_layout(QWidget):
                 self.detected_video.setImage(detect_frame)
                 # detect_count = detect_result[1]  # detect_q 중 라벨 수 dict
                 # self.cls_count(detect_count)
-                
+
                 # object tracking에 맞게 클래스 카운트 변경
                 id_label_count_list = detect_result[1]
                 self.yolo_object_tracking_count(id_label_count_list=id_label_count_list)
@@ -544,32 +545,25 @@ class init_layout(QWidget):
 
     # ADD action recognize visualization
     def visual_process2(self): # 영상 가시화 함수
-        action_detect_q_flag = False
         while True:
             self.vis2_ready = False
-            if self.action_detect_q.qsize() > 0:
-                action_detect_q_flag = True
+            if self.action_detect_q.qsize() > 0 and self.video_play:
                 self.recognize_frame = self.action_detect_q.get()
                 if type(self.recognize_frame) == dict:
                     ## 행동 confidence 값
                     action_count = self.recognize_frame
                     self.cls_count(action_count)
                 else:
-                    self.recognize_frame = self.convert_cv_qt(self.recognize_frame)
-
-            elif self.action_detect_q.qsize() == 0:
-                action_detect_q_flag = False
-
-            if action_detect_q_flag:
-                if type(self.recognize_frame) != dict:
                     self.vis2_ready = True
                     while not self.vis1_ready and self.video_sync:
                         if self.vis1_ready and self.vis2_ready or self.vis_terminate:
                             break
+                    self.recognize_frame = self.convert_cv_qt(self.recognize_frame)
                     self.recognize_video.setImage(self.recognize_frame)
                     time.sleep(0.04)
             else:
                 continue
+
 
     def convert_cv_qt(self, frame): # cv2 이미지를 QImage 형태로 변환하는 함수(640*360 사이즈로 자동 변환)
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
