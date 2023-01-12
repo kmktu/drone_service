@@ -3,11 +3,11 @@ import load_video.load_video as lv
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Process, Queue, Pipe
 from draw.draw_camera_groupbox import draw_camera_object_groupbox, draw_camera_action_groupbox
-from draw.draw_month_barchart import draw_month_barchart
 from load_video.ImageViewer import *
 import time
 import os
 from PyQt5.QtCore import Qt
+import pyqtgraph as pg
 import json
 from collections import defaultdict, OrderedDict
 
@@ -30,8 +30,8 @@ class init_layout(QWidget):
         self.video_pause_btn.clicked.connect(self.video_pause)
         self.video_stop_btn = QPushButton("Stop", self) # 영상 초기화 버튼
         self.video_stop_btn.clicked.connect(self.video_stop)
-        self.reload_stat_btn = QPushButton("Refresh", self)  # 통계 불러오기 버튼
-        self.reload_stat_btn.clicked.connect(self.reload_stat)
+        self.reload_plot_data_btn = QPushButton("Refresh", self)  # 통계 불러오기 버튼
+        self.reload_plot_data_btn.clicked.connect(self.reload_plot_data)
 
         # 파일리스트 경로 지정 버튼
         self.video_file_list_btn = QPushButton("ADD File List Path", self)
@@ -55,9 +55,9 @@ class init_layout(QWidget):
         file_list_btn_font.setPointSize(font_size)
         self.video_file_list_btn.setFont(file_list_btn_font)
 
-        reload_stat_btn_font = self.reload_stat_btn.font()
-        reload_stat_btn_font.setPointSize(font_size)
-        self.reload_stat_btn.setFont(reload_stat_btn_font)
+        reload_plot_data_btn_font = self.reload_plot_data_btn.font()
+        reload_plot_data_btn_font.setPointSize(font_size)
+        self.reload_plot_data_btn.setFont(reload_plot_data_btn_font)
 
         main_layout = QVBoxLayout() # 메인 레이아웃(비디오영역, 비디오 컨트롤러 영역, 통계 영역)
 
@@ -210,33 +210,33 @@ class init_layout(QWidget):
         information_line1.setFrameShadow(QFrame.Sunken)
 
         #  Radio button select info
-        self.radio_box_stat = QGroupBox()
-        self.radio_box_stat_layout = QHBoxLayout()
-        self.radio_box_stat.setLayout(self.radio_box_stat_layout)
-        self.radio_box_stat_layout.addWidget(self.information_select_qlabel)
+        self.radio_box_plot = QGroupBox()
+        self.radio_box_plot_layout = QHBoxLayout()
+        self.radio_box_plot.setLayout(self.radio_box_plot_layout)
+        self.radio_box_plot_layout.addWidget(self.information_select_qlabel)
 
         self.information_select_total = QRadioButton('Total')
         self.information_select_total.setChecked(True)
-        self.information_select_total.clicked.connect(self.change_stat)
-        self.radio_box_stat_layout.addWidget(self.information_select_total)
+        self.information_select_total.clicked.connect(self.change_plot)
+        self.radio_box_plot_layout.addWidget(self.information_select_total)
 
         self.information_select_object = QRadioButton('Object')
-        self.information_select_object.clicked.connect(self.change_stat)
-        self.radio_box_stat_layout.addWidget(self.information_select_object)
+        self.information_select_object.clicked.connect(self.change_plot)
+        self.radio_box_plot_layout.addWidget(self.information_select_object)
 
         self.information_select_action = QRadioButton('Action')
-        self.information_select_action.clicked.connect(self.change_stat)
-        self.radio_box_stat_layout.addWidget(self.information_select_action)
-        self.radio_box_stat_layout.addWidget(self.reload_stat_btn)
+        self.information_select_action.clicked.connect(self.change_plot)
+        self.radio_box_plot_layout.addWidget(self.information_select_action)
+        self.radio_box_plot_layout.addWidget(self.reload_plot_data_btn)
 
         self.information_select_qlabel.setMaximumWidth(120)
         self.information_select_total.setMaximumWidth(120)
         self.information_select_object.setMaximumWidth(120)
         self.information_select_action.setMaximumWidth(120)
-        self.reload_stat_btn.setMaximumWidth(120)
+        self.reload_plot_data_btn.setMaximumWidth(120)
 
         information_label_layout.addWidget(self.information_qlabel, alignment=Qt.AlignLeft)
-        information_label_layout.addWidget(self.radio_box_stat, alignment=Qt.AlignRight)
+        information_label_layout.addWidget(self.radio_box_plot, alignment=Qt.AlignRight)
 
         all_information_layout.addLayout(information_label_layout)
         all_information_layout.addWidget(information_line1)
@@ -248,8 +248,12 @@ class init_layout(QWidget):
         self.camera_action_groupbox_widget = draw_camera_action_groupbox() # 액션 통계 그룹박스 불러오기(QGroupBox 리턴)
         information_layout.addWidget(self.camera_action_groupbox_widget)
 
-        self.month_barchart_widget = draw_month_barchart() # 월별 통계 barchart 불러오기(barchar 리턴)
-        information_layout.addWidget(self.month_barchart_widget)
+        self.total_json_fp = f'logs/log_total.json'
+        self.plot_date = []
+        self.plot_action = []
+        self.plot_object = []
+        self.init_plot()  # 월별 통계 plot 불러오기
+        information_layout.addWidget(self.plot_widget)
 
         # 레이아웃 추가
         video_qlabel_layout.addLayout(video_sync_layout)
@@ -281,7 +285,7 @@ class init_layout(QWidget):
 
         self.video_path = None
         self.init_count()
-        self.init_stat()
+
 
 
     def video_start(self): # 영상 재생 함수
@@ -371,21 +375,48 @@ class init_layout(QWidget):
         self.vis2_ready = False
 
         self.model_init_log.setText("State : Stop Video")
-
         self.drop_log()
 
-    def init_stat(self):
-        print('init')
+    # 그래프 드로잉 함수
+    def draw_plot(self, x, y, width=0.4, brush=(180, 180, 180), pen=(100, 100, 100)):
+        self.plot_widget.setXRange(-1, len(x), padding=0)  # 초기 X 축 범위 지정
+        self.plot_widget.setYRange(0, max(y) + (max(y) * 0.01), padding=0)  # 초기 Y 축 범위 지정
+        self.bargraph = pg.BarGraphItem(x=range(len(x)), height=y, width=width, brush=brush, pen=pen)  # barchart 생성
+        self.plot_widget.addItem(self.bargraph)  # widget에 생성한 bargraph 추가
+        month_labels = [(n, m) for n, m in zip(range(len(self.plot_date)), self.plot_date)]  # X축의 넘버와 날짜를 짝짓기
+        ax = self.plot_widget.getAxis('bottom')  # widget의 아래 축을 선택
+        ax.setTicks([month_labels])  # 선택한 축의 값을 [(기존 값, 대체할 값), ...] 형식으로 대체
 
-    @staticmethod
-    def reload_stat():
-        total_json_fp = f'logs/log_total.json'
+    # 그래프 초기 설정 함수
+    def init_plot(self):
+        with open(self.total_json_fp, 'r') as total_json_file:  # JSON 읽기
+            total_json_data = json.load(total_json_file)
+            for date, data in sorted(total_json_data.items()):  # 정렬 후 리스트에 데이터 나누기
+                self.plot_date.append(date)
+                self.plot_action.append(data['total_action'])
+                self.plot_object.append(data['total_object'])
+
+        pg.setConfigOptions(background=(240, 240, 240), foreground=(0, 0, 0))  # pyqtgraph 옵션 설정(전경,배경 색 지정)
+        self.plot_widget = pg.PlotWidget(title="Detect Count per Month")
+        self.plot_widget.showGrid(x=False, y=False)  # x축, y축 격자 무늬 제거
+        if self.information_select_total.isChecked():  # 체크박스 체크 현황에 따라 다른 그래프 드로잉
+            plot_total = [(a + b) for a, b in zip(self.plot_action, self.plot_object)]
+            self.draw_plot(self.plot_date, plot_total)
+        elif self.information_select_object.isChecked():
+            self.draw_plot(self.plot_date, self.plot_object)
+        elif self.information_select_action.isChecked():
+            self.draw_plot(self.plot_date, self.plot_action)
+        else:
+            pass
+
+    def reload_plot_data(self):  # drop_log로 생성된 로그들을 모두 읽어 그래프를 그리기 위한 JSON 하나로 함축
         total_dict = defaultdict(dict)
-        for (root, dirs, files) in os.walk('logs'):
+        excluded = ['log_total.json']  # 이미 모아져 있는 파일 무시
+        for (root, dirs, files) in os.walk('logs'):  # 로그들의 데이터를 월별 dict로 카운트
             for file in files:
-                date = root.split('\\')[-1]
-                if f'd{date}' not in total_dict.keys():
-                    total_dict[f'd{date}'] = {
+                if file not in excluded:
+                    date = root.split('\\')[-1]
+                    total_dict[f'{date}'] = {
                         'total_action': 0,
                         'total_object': 0,
                         'person': 0,
@@ -394,23 +425,28 @@ class init_layout(QWidget):
                         'sos': 0,
                         'fall_down': 0
                     }
-                with open(f'{root}/{file}') as json_file:
-                    json_data = json.load(json_file)
-                    for v in json_data.values():
-                        for key, value in v.items():
-                            total_dict[f'd{date}'][key] += value
-        with open(total_json_fp, 'w') as total_json_file:
+                    with open(f'{root}/{file}') as json_file:
+                        json_data = json.load(json_file)
+                        for v in json_data.values():
+                            for key, value in v.items():
+                                total_dict[f'd{date}'][key] += value
+        with open(self.total_json_fp, 'w') as total_json_file:  # total_dict를 기반으로 파일 새로 작성
             total_json_data = OrderedDict(total_dict)
             json.dump(total_json_data, total_json_file, ensure_ascii=False, indent='\t')
+        self.plot_widget.removeItem(self.bargraph)  # 기존 그래프 삭제
+        self.init_plot()  # 그래프 widget 자체를 새로 고침
 
-
-    def change_stat(self):
+    def change_plot(self):  # 체크박스에 따라 다른 그래프 표시
         if self.information_select_total.isChecked():
-            print('total')
+            plot_total = [(a + b) for a, b in zip(self.plot_action, self.plot_object)]
+            self.plot_widget.removeItem(self.bargraph)  # widget에 있는 기존 bargraph 삭제
+            self.draw_plot(self.plot_date, plot_total)
         elif self.information_select_object.isChecked():
-            print('object')
+            self.plot_widget.removeItem(self.bargraph)
+            self.draw_plot(self.plot_date, self.plot_object)
         elif self.information_select_action.isChecked():
-            print('action')
+            self.plot_widget.removeItem(self.bargraph)
+            self.draw_plot(self.plot_date, self.plot_action)
         else:
             pass
 
