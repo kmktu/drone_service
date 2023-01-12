@@ -5,9 +5,9 @@ TRAIN:
   EVAL_PERIOD: 5
   CHECKPOINT_PERIOD: 1
   AUTO_RESUME: True
-  CHECKPOINT_FILE_PATH: '../drone_service/SlowFast/configs/AVA/c2/SLOWFAST_32x2_R101_50_50.pkl'  #path to pretrain model
+  CHECKPOINT_FILE_PATH: '../drone_service/SlowFast/configs/AVA/c2/checkpoint_epoch_00100.pyth'  #path to pretrain model
 #  CHECKPOINT_FILE_PATH: 'SLowFast/configs/AVA/c2/SLOWFAST_32x2_R101_50_50.pkl'  #path to pretrain model
-  CHECKPOINT_TYPE: caffe2
+  CHECKPOINT_TYPE: pytorch
 DATA:
   NUM_FRAMES: 16 #32
   SAMPLING_RATE: 2
