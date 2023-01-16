@@ -39,6 +39,7 @@ def slowfast_read_frames(action_detect_q, action_stop_pipe_child, video_path, ac
     frames_list = []
 
     action_model_init_child_pipe.send("model_init_done")
+
     for ii in range(nframes):  # 영상의 마지막 프레임까지 반복
         _, frame = reader.read()
 
@@ -47,7 +48,19 @@ def slowfast_read_frames(action_detect_q, action_stop_pipe_child, video_path, ac
         # pipe 이용해서 stop 버튼 클릭했을 시 신호를 보내고 신호 확인 후 child 프로세스들 다 종료 후 Done 메세지 보냄
         if str(action_stop_pipe_child.poll()) == "True":
             stop_flag = action_stop_pipe_child.recv()
-            print(stop_flag)
+            print("flag : ", stop_flag)
+            # if stop_flag == 'pause':
+            #     while True:
+            #         if str(action_stop_pipe_child.poll()):
+            #             btn_flag = action_stop_pipe_child.recv()
+            #             if btn_flag == "restart":
+            #                 break
+            #             elif btn_flag == "stop":
+            #                 children = active_children()
+            #                 for child in children:
+            #                     child.terminate()
+            #                 action_stop_pipe_child.send('done')
+            #                 break
             if stop_flag == 'stop':
                 children = active_children()
                 for child in children:
