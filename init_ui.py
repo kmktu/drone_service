@@ -488,10 +488,15 @@ class init_layout(QWidget):
         self.total_action_count.setText(f'{total_act_cnt}')
 
     def drop_log(self):  # 로그 JSON 드롭
-        video_date_name = self.video_path.split('\\')[-1]
-        video_date = video_date_name.split('/')[0]
-        video_name = video_date_name.split('/')[-1]
-        log_json_fp = f'logs/{video_date[:-3]}/{video_date}.json'
+        # ../2023.01.16/video_name
+        # video_date_name = self.video_path.split('\\')[-1]
+        video_name = self.video_path.split('/')[-1]
+        print("video_name : ", video_name)
+
+        # date
+        folder_name = self.video_path.split('/')[-2]
+        # video_name = video_date_name.split('/')[-1]
+        log_json_fp = f'logs/{folder_name[:-3]}/{folder_name}.json'
         os.makedirs(os.path.split(log_json_fp)[0], exist_ok=True)
         if os.path.isfile(log_json_fp):
             with open(log_json_fp, 'r') as log_json_file:
@@ -644,4 +649,3 @@ class init_layout(QWidget):
             if object_model_init_flag and action_model_init_flag:
                 self.model_init_log.setText("State : All Model Init... Done, Start Video")
                 break
-
