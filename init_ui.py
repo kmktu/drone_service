@@ -286,8 +286,6 @@ class init_layout(QWidget):
         self.video_path = None
         self.init_count()
 
-
-
     def video_start(self): # 영상 재생 함수
         if self.file_list_widget.currentItem() == None: # listwidget 아이템 미선택시 바로 리턴
             return
@@ -383,31 +381,33 @@ class init_layout(QWidget):
         self.plot_widget.setYRange(0, max(y) + (max(y) * 0.01), padding=0)  # 초기 Y 축 범위 지정
         self.bargraph = pg.BarGraphItem(x=range(len(x)), height=y, width=width, brush=brush, pen=pen)  # barchart 생성
         self.plot_widget.addItem(self.bargraph)  # widget에 생성한 bargraph 추가
-        month_labels = [(n, m) for n, m in zip(range(len(self.plot_date)), self.plot_date)]  # X축의 넘버와 날짜를 짝짓기
+        month_labels = [(n, m) for n, m in zip(range(len(x)), x)]  # X축의 넘버와 날짜를 짝짓기
         ax = self.plot_widget.getAxis('bottom')  # widget의 아래 축을 선택
         ax.setTicks([month_labels])  # 선택한 축의 값을 [(기존 값, 대체할 값), ...] 형식으로 대체
 
     # 그래프 초기 설정 함수
     def init_plot(self):
-        with open(self.total_json_fp, 'r') as total_json_file:  # JSON 읽기
-            total_json_data = json.load(total_json_file)
-            for date, data in sorted(total_json_data.items()):  # 정렬 후 리스트에 데이터 나누기
-                self.plot_date.append(date)
-                self.plot_action.append(data['total_action'])
-                self.plot_object.append(data['total_object'])
-
         pg.setConfigOptions(background=(240, 240, 240), foreground=(0, 0, 0))  # pyqtgraph 옵션 설정(전경,배경 색 지정)
         self.plot_widget = pg.PlotWidget(title="Detect Count per Month")
         self.plot_widget.showGrid(x=False, y=False)  # x축, y축 격자 무늬 제거
-        if self.information_select_total.isChecked():  # 체크박스 체크 현황에 따라 다른 그래프 드로잉
-            plot_total = [(a + b) for a, b in zip(self.plot_action, self.plot_object)]
-            self.draw_plot(self.plot_date, plot_total)
-        elif self.information_select_object.isChecked():
-            self.draw_plot(self.plot_date, self.plot_object)
-        elif self.information_select_action.isChecked():
-            self.draw_plot(self.plot_date, self.plot_action)
+        if os.path.isfile(self.total_json_fp):
+            with open(self.total_json_fp, 'r') as total_json_file:  # JSON 읽기
+                total_json_data = json.load(total_json_file)
+                for date, data in sorted(total_json_data.items()):  # 정렬 후 리스트에 데이터 나누기
+                    self.plot_date.append(date)
+                    self.plot_action.append(data['total_action'])
+                    self.plot_object.append(data['total_object'])
+            if self.information_select_total.isChecked():  # 체크박스 체크 현황에 따라 다른 그래프 드로잉
+                plot_total = [(a + b) for a, b in zip(self.plot_action, self.plot_object)]
+                self.draw_plot(self.plot_date, plot_total)
+            elif self.information_select_object.isChecked():
+                self.draw_plot(self.plot_date, self.plot_object)
+            elif self.information_select_action.isChecked():
+                self.draw_plot(self.plot_date, self.plot_action)
+            else:
+                pass
         else:
-            pass
+            self.draw_plot(['No Total Data. Press Refresh.'], [999])
 
     def reload_plot_data(self):  # drop_log로 생성된 로그들을 모두 읽어 그래프를 그리기 위한 JSON 하나로 함축
         total_dict = defaultdict(dict)
@@ -430,11 +430,12 @@ class init_layout(QWidget):
                         for v in json_data.values():
                             for key, value in v.items():
                                 total_dict[f'd{date}'][key] += value
-        with open(self.total_json_fp, 'w') as total_json_file:  # total_dict를 기반으로 파일 새로 작성
-            total_json_data = OrderedDict(total_dict)
-            json.dump(total_json_data, total_json_file, ensure_ascii=False, indent='\t')
-        self.plot_widget.removeItem(self.bargraph)  # 기존 그래프 삭제
-        self.init_plot()  # 그래프 widget 자체를 새로 고침
+        if total_dict:
+            with open(self.total_json_fp, 'w') as total_json_file:  # total_dict를 기반으로 파일 새로 작성
+                total_json_data = OrderedDict(total_dict)
+                json.dump(total_json_data, total_json_file, ensure_ascii=False, indent='\t')
+            self.plot_widget.removeItem(self.bargraph)  # 기존 그래프 삭제
+            self.init_plot()  # 그래프 widget 자체를 새로 고침
 
     def change_plot(self):  # 체크박스에 따라 다른 그래프 표시
         if self.information_select_total.isChecked():
