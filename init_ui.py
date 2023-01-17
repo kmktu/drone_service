@@ -364,19 +364,30 @@ class init_layout(QWidget):
                 executor3.submit(self.state_log)
 
     def video_pause(self): # 영상 일시정지 함수
+        self.action_stop_pipe_parent.send("pause")
+        self.slowfast_pause_stop_flag = True
+        while True:
+            if str(self.action_stop_pipe_parent.poll()):
+                if self.action_stop_pipe_parent.recv() == "pause_done":
+                    break
         self.video_play = False
-        # self.action_stop_pipe_parent.send("pause")
         self.model_init_log.setText("State : Pause Video")
 
     def video_stop(self): # 영상 초기화 함수
         # pipe 신호를 이용해서 프로세스 종료
+        self.video_play = True
         if self.frame_reader_p2.is_alive():
-            self.action_stop_pipe_parent.send("stop")
+            if not self.slowfast_pause_stop_flag:
+                self.action_stop_pipe_parent.send("pause_stop")
+            else:
+                self.action_stop_pipe_parent.send("stop")
             while True:
                 if str(self.action_stop_pipe_parent.poll()):
                     if self.action_stop_pipe_parent.recv() == "done":
                         self.frame_reader_p2.terminate()
                         break
+                    if self.action_stop_pipe_parent.recv() == "pause_stop_done":
+                        self.frame_reader_p2.terminate()
 
         self.frame_q = None
         self.detect_q = None
