@@ -97,10 +97,26 @@ class init_layout(QWidget):
         self.play_video_qlabel.setText("Video")
         self.play_video_qlabel.setFixedSize(68, 20)
 
+        # UI 상태 표시 부분
         self.model_init_log = QLabel(self)
         self.model_init_log.setFont(QFont('Arial', 10))
         self.model_init_log.setText("State : Waiting...")
         # self.model_init_log.setFixedSize(68, 20)
+
+        # FPS 상태 표시 부분
+        video_fps_log_box = QGroupBox('FPS')
+        video_fps_log_box_layout = QHBoxLayout()
+        self.fps_widget_label = QLabel()
+        self.obj_fps_widget_label = QLabel()
+        self.act_fps_widget_label = QLabel()
+        self.fps_widget_label.setFont(QFont('Arial', 10))
+        self.obj_fps_widget_label.setFont(QFont('Arial', 10))
+        self.act_fps_widget_label.setFont(QFont('Arial', 10))
+
+        video_fps_log_box_layout.addWidget(self.fps_widget_label)
+        video_fps_log_box_layout.addWidget(self.obj_fps_widget_label)
+        video_fps_log_box_layout.addWidget(self.act_fps_widget_label)
+        video_fps_log_box.setLayout(video_fps_log_box_layout)
 
         self.video_sync_qlabel = QLabel(self)
         self.video_sync_qlabel.setFont(QFont('Arial', 13))
@@ -114,6 +130,7 @@ class init_layout(QWidget):
         # Qlabel 레이아웃 위젯
         video_qlabel_layout.addWidget(self.play_video_qlabel, alignment=Qt.AlignLeft)
         video_qlabel_layout.addWidget(self.model_init_log, alignment=Qt.AlignCenter)
+        video_qlabel_layout.addWidget(video_fps_log_box, alignment=Qt.AlignRight)
 
         # 영상 싱크 맞추기 레이아웃 위젯
         self.radio_box_sync = QGroupBox()
@@ -340,6 +357,8 @@ class init_layout(QWidget):
 
                 self.frame_reader_p2.daemon = False
                 self.frame_reader_p2.start()
+
+                # UI 상태 표시 프로세스, FPS 상태 표시 프로세스
                 self.model_init_log.setText("State : Model Initializing...")
                 executor3 = ThreadPoolExecutor(1)
                 executor3.submit(self.state_log)
@@ -364,8 +383,8 @@ class init_layout(QWidget):
         self.action_detect_q = None
         self.video_load = False
         self.video_play = False
-        # if self.frame_reader_p.is_alive():
-        #     self.frame_reader_p.terminate()
+        if self.frame_reader_p.is_alive():
+            self.frame_reader_p.terminate()
 
         # Sync 플래그 초기화
         self.vis_terminate = True  # Sync 반복문 정지 플래그 활성화
@@ -562,6 +581,11 @@ class init_layout(QWidget):
 
 
     def visual_process(self): # 영상 가시화 함수
+        object_detection_prev_time = time.time()
+
+        self.obj_prev_time = time.time()
+        self.obj_fps_widget_label.clear()
+        self.fps_widget_label.clear()
         while True:
             self.vis1_ready = False
             if self.frame_q.qsize() > 0 and self.video_play: # 영상이 재생 중이며 frame_q에 frame이 하나 이상 존재할 때 가시화
@@ -570,23 +594,42 @@ class init_layout(QWidget):
                 detect_result = self.detect_q.get()
                 detect_frame = self.convert_cv_qt(detect_result[0])  # detect_q 중 frame
                 self.vis1_ready = True
+
+                # if not self.video_sync:
+                #     object_detection_cur_time = time.time()
+                #     object_fps = 1 / (object_detection_cur_time - object_detection_prev_time)
+                #     object_detection_prev_time = object_detection_cur_time
+                #     self.object_fps_str = "%0.1f" % object_fps
+
                 while not self.vis2_ready and self.video_sync:
                     if self.vis1_ready and self.vis2_ready or self.vis_terminate:
                         break
+
                 self.original_video.setImage(frame)
                 self.detected_video.setImage(detect_frame)
-                # detect_count = detect_result[1]  # detect_q 중 라벨 수 dict
-                # self.cls_count(detect_count)
+
+                cur_time = time.time()
+                fps = 1 / (cur_time - self.obj_prev_time)
+                self.obj_prev_time = cur_time
+                self.obj_fps_str = "%0.1f" % fps
+
+                if self.video_sync:
+                    self.fps_widget_label.setText("SYNC_FPS : " + self.obj_fps_str)
+                else:
+                    self.obj_fps_widget_label.setText("OBJ_FPS : " + self.obj_fps_str)
 
                 # object tracking에 맞게 클래스 카운트 변경
                 id_label_count_list = detect_result[1]
                 self.yolo_object_tracking_count(id_label_count_list=id_label_count_list)
-                time.sleep(0.04)
+                time.sleep(0.015)
+
             else:
                 continue
 
     # ADD action recognize visualization
     def visual_process2(self): # 영상 가시화 함수
+        self.act_prev_time = time.time()
+        self.act_fps_widget_label.clear()
         while True:
             self.vis2_ready = False
             if self.action_detect_q.qsize() > 0 and self.video_play:
@@ -597,15 +640,24 @@ class init_layout(QWidget):
                     self.cls_count(action_count)
                 else:
                     self.vis2_ready = True
+
                     while not self.vis1_ready and self.video_sync:
                         if self.vis1_ready and self.vis2_ready or self.vis_terminate:
                             break
                     self.recognize_frame = self.convert_cv_qt(self.recognize_frame)
                     self.recognize_video.setImage(self.recognize_frame)
-                    time.sleep(0.04)
+
+                    cur_time = time.time()
+                    fps = 1 / (cur_time - self.act_prev_time)
+                    self.act_prev_time = cur_time
+                    self.act_fps_str = "%0.1f" % fps
+
+                    if not self.video_sync:
+                        self.act_fps_widget_label.setText("ACT_FPS : " + self.act_fps_str)
+
+                    time.sleep(0.015)
             else:
                 continue
-
 
     def convert_cv_qt(self, frame): # cv2 이미지를 QImage 형태로 변환하는 함수(640*360 사이즈로 자동 변환)
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -638,6 +690,7 @@ class init_layout(QWidget):
         object_model_init_flag = False
         action_model_init_flag = False
         while True:
+            # UI 상태 표시
             if str(self.object_model_init_parent_pipe.poll()):
                 if self.object_model_init_parent_pipe.recv() == "model_init_done":
                     self.model_init_log.setText("State : Object Model Init... Done")
