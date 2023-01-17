@@ -3,9 +3,7 @@ import cv2
 from Yolov5_StrongSORT_OSNet import yolo_sort_detection
 from SlowFast.slowfast_detection import SlowFastDetection
 from SlowFast.slowfast.utils.misc import get_class_names
-
 from multiprocessing import active_children
-
 
 def read_frames(frame_q, detect_q, video_path, object_model_init_child_pipe):  # 영상의 프레임을 읽어와서 모델 추론을 수행하는 함수
     inference_model_yolo = yolo_sort_detection.ObjectDetection()
