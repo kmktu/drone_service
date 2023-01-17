@@ -10,6 +10,7 @@ from PyQt5.QtCore import Qt
 import pyqtgraph as pg
 import json
 from collections import defaultdict, OrderedDict
+from multiprocessing import active_children
 
 class init_layout(QWidget):
     def __init__(self): # UI 초기화
@@ -375,6 +376,9 @@ class init_layout(QWidget):
             while True:
                 if str(self.action_stop_pipe_parent.poll()):
                     if self.action_stop_pipe_parent.recv() == "done":
+                        children = active_children()
+                        for child in children:
+                            child.terminate()
                         self.frame_reader_p2.terminate()
                         break
 
