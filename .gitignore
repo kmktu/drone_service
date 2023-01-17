@@ -82,3 +82,4 @@ fabric.properties
 /build/
 /backup/
 /detectron2-windows/
+/logs/
