@@ -29,7 +29,7 @@ if str(ROOT / 'trackers' / 'strong_sort' / 'configs') not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from yolov5.models.common import DetectMultiBackend
-from yolov5.utils.general import (LOGGER, Profile, non_max_suppression, scale_boxes, strip_optimizer)
+from yolov5.utils.general import (Profile, non_max_suppression, scale_boxes, strip_optimizer)
 from yolov5.utils.torch_utils import select_device
 from yolov5.utils.plots import Annotator, colors
 from utils.segment.general import masks2segments, process_mask, process_mask_native

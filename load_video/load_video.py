@@ -49,18 +49,6 @@ def slowfast_read_frames(action_detect_q, action_stop_pipe_child, video_path, ac
         if str(action_stop_pipe_child.poll()) == "True":
             stop_flag = action_stop_pipe_child.recv()
             print("flag : ", stop_flag)
-            # if stop_flag == 'pause':
-            #     while True:
-            #         if str(action_stop_pipe_child.poll()):
-            #             btn_flag = action_stop_pipe_child.recv()
-            #             if btn_flag == "restart":
-            #                 break
-            #             elif btn_flag == "stop":
-            #                 children = active_children()
-            #                 for child in children:
-            #                     child.terminate()
-            #                 action_stop_pipe_child.send('done')
-            #                 break
             if stop_flag == 'stop':
                 children = active_children()
                 for child in children:
