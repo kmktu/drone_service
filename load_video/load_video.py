@@ -52,13 +52,6 @@ def slowfast_read_frames(action_detect_q, action_stop_pipe_child, video_path, ac
                 for child in children:
                     child.terminate()
                 action_stop_pipe_child.send('done')
-            elif stop_flag == 'pause':
-                action_stop_pipe_child.send('pause_done')
-            elif stop_flag == 'pause_stop':
-                children = active_children()
-                for child in children:
-                    child.terminate()
-                action_stop_pipe_child.send("pause_stop_done")
 
         if len(frames_list) == inference_model_slowfast.seq_length:
             for task in inference_model_slowfast.run_model(frames_list):
