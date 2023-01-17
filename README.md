@@ -14,4 +14,5 @@
 * Detectron2 -> 행동 인식에 사용되는 객체 인식 모델
 
 # Release Version
--[Drone Service Exe V1.0](https://drive.google.com/file/d/1KbM2gIa373bUiCnrAailvB_PAJ1Zzqnv/view?usp=share_link)
+* ~~Drone Service Exe V1.0~~
+* [Drone Service EXE V2.0](https://drive.google.com/file/d/1wkuotxtAOr1_DYElax8eaaHt6kpHn8EQ/view?usp=sharing)
