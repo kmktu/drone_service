@@ -265,10 +265,14 @@ class init_layout(QWidget):
         self.camera_action_groupbox_widget = draw_camera_action_groupbox() # 액션 통계 그룹박스 불러오기(QGroupBox 리턴)
         information_layout.addWidget(self.camera_action_groupbox_widget)
 
+        pg.setConfigOptions(background=(240, 240, 240), foreground=(0, 0, 0))  # pyqtgraph 옵션 설정(전경,배경 색 지정)
+        self.plot_widget = pg.PlotWidget(title="Detect Count per Month")
+        self.plot_widget.showGrid(x=False, y=False)  # x축, y축 격자 무늬 제거
         self.total_json_fp = f'logs/log_total.json'
         self.plot_date = []
         self.plot_action = []
         self.plot_object = []
+        self.bargraph = None
         self.init_plot()  # 월별 통계 plot 불러오기
         information_layout.addWidget(self.plot_widget)
 
@@ -401,6 +405,8 @@ class init_layout(QWidget):
 
     # 그래프 드로잉 함수
     def draw_plot(self, x, y, width=0.4, brush=(180, 180, 180), pen=(100, 100, 100)):
+        if self.bargraph:
+            self.plot_widget.removeItem(self.bargraph)    # widget에 있는 기존 bargraph 삭제
         self.plot_widget.setXRange(-1, len(x), padding=0)  # 초기 X 축 범위 지정
         self.plot_widget.setYRange(0, max(y) + (max(y) * 0.01), padding=0)  # 초기 Y 축 범위 지정
         self.bargraph = pg.BarGraphItem(x=range(len(x)), height=y, width=width, brush=brush, pen=pen)  # barchart 생성
@@ -411,9 +417,9 @@ class init_layout(QWidget):
 
     # 그래프 초기 설정 함수
     def init_plot(self):
-        pg.setConfigOptions(background=(240, 240, 240), foreground=(0, 0, 0))  # pyqtgraph 옵션 설정(전경,배경 색 지정)
-        self.plot_widget = pg.PlotWidget(title="Detect Count per Month")
-        self.plot_widget.showGrid(x=False, y=False)  # x축, y축 격자 무늬 제거
+        self.plot_date = []
+        self.plot_action = []
+        self.plot_object = []
         if os.path.isfile(self.total_json_fp):
             with open(self.total_json_fp, 'r') as total_json_file:  # JSON 읽기
                 total_json_data = json.load(total_json_file)
@@ -421,15 +427,7 @@ class init_layout(QWidget):
                     self.plot_date.append(date)
                     self.plot_action.append(data['total_action'])
                     self.plot_object.append(data['total_object'])
-            if self.information_select_total.isChecked():  # 체크박스 체크 현황에 따라 다른 그래프 드로잉
-                plot_total = [(a + b) for a, b in zip(self.plot_action, self.plot_object)]
-                self.draw_plot(self.plot_date, plot_total)
-            elif self.information_select_object.isChecked():
-                self.draw_plot(self.plot_date, self.plot_object)
-            elif self.information_select_action.isChecked():
-                self.draw_plot(self.plot_date, self.plot_action)
-            else:
-                pass
+            self.change_plot()
         else:
             self.draw_plot(['No Total Data. Press Refresh.'], [999])
 
@@ -439,21 +437,22 @@ class init_layout(QWidget):
         for (root, dirs, files) in os.walk('logs'):  # 로그들의 데이터를 월별 dict로 카운트
             for file in files:
                 if file not in excluded:
-                    date = root.split('\\')[-1]
-                    total_dict[f'{date}'] = {
-                        'total_action': 0,
-                        'total_object': 0,
-                        'person': 0,
-                        'car': 0,
-                        'boat': 0,
-                        'sos': 0,
-                        'fall_down': 0
-                    }
+                    date = os.path.split(root)[1]
+                    if not total_dict[f'{date}']:
+                        total_dict[f'{date}'] = {
+                            'total_action': 0,
+                            'total_object': 0,
+                            'person': 0,
+                            'car': 0,
+                            'boat': 0,
+                            'sos': 0,
+                            'fall_down': 0
+                        }
                     with open(f'{root}/{file}') as json_file:
                         json_data = json.load(json_file)
                         for v in json_data.values():
                             for key, value in v.items():
-                                total_dict[f'd{date}'][key] += value
+                                total_dict[f'{date}'][key] += value
         if total_dict:
             with open(self.total_json_fp, 'w') as total_json_file:  # total_dict를 기반으로 파일 새로 작성
                 total_json_data = OrderedDict(total_dict)
@@ -464,13 +463,10 @@ class init_layout(QWidget):
     def change_plot(self):  # 체크박스에 따라 다른 그래프 표시
         if self.information_select_total.isChecked():
             plot_total = [(a + b) for a, b in zip(self.plot_action, self.plot_object)]
-            self.plot_widget.removeItem(self.bargraph)  # widget에 있는 기존 bargraph 삭제
             self.draw_plot(self.plot_date, plot_total)
         elif self.information_select_object.isChecked():
-            self.plot_widget.removeItem(self.bargraph)
             self.draw_plot(self.plot_date, self.plot_object)
         elif self.information_select_action.isChecked():
-            self.plot_widget.removeItem(self.bargraph)
             self.draw_plot(self.plot_date, self.plot_action)
         else:
             pass
@@ -513,13 +509,8 @@ class init_layout(QWidget):
 
     def drop_log(self):  # 로그 JSON 드롭
         # ../2023.01.16/video_name
-        # video_date_name = self.video_path.split('\\')[-1]
-        video_name = self.video_path.split('/')[-1]
-        print("video_name : ", video_name)
-
-        # date
-        folder_name = self.video_path.split('/')[-2]
-        # video_name = video_date_name.split('/')[-1]
+        video_name = os.path.basename(self.video_path)
+        folder_name = os.path.split(os.path.dirname(self.video_path))[1]  # date
         log_json_fp = f'logs/{folder_name[:-3]}/{folder_name}.json'
         os.makedirs(os.path.split(log_json_fp)[0], exist_ok=True)
         if os.path.isfile(log_json_fp):
@@ -586,6 +577,8 @@ class init_layout(QWidget):
 
 
     def visual_process(self): # 영상 가시화 함수
+        object_detection_prev_time = time.time()
+
         self.obj_prev_time = time.time()
         self.obj_fps_widget_label.clear()
         self.fps_widget_label.clear()
@@ -597,6 +590,12 @@ class init_layout(QWidget):
                 detect_result = self.detect_q.get()
                 detect_frame = self.convert_cv_qt(detect_result[0])  # detect_q 중 frame
                 self.vis1_ready = True
+
+                # if not self.video_sync:
+                #     object_detection_cur_time = time.time()
+                #     object_fps = 1 / (object_detection_cur_time - object_detection_prev_time)
+                #     object_detection_prev_time = object_detection_cur_time
+                #     self.object_fps_str = "%0.1f" % object_fps
 
                 while not self.vis2_ready and self.video_sync:
                     if self.vis1_ready and self.vis2_ready or self.vis_terminate:
@@ -617,9 +616,11 @@ class init_layout(QWidget):
 
                 # object tracking에 맞게 클래스 카운트 변경
                 id_label_count_list = detect_result[1]
+
                 if not self.vis_terminate:
                     self.yolo_object_tracking_count(id_label_count_list=id_label_count_list)
                 time.sleep(0.015)
+
             else:
                 continue
 
