@@ -577,8 +577,6 @@ class init_layout(QWidget):
 
 
     def visual_process(self): # 영상 가시화 함수
-        object_detection_prev_time = time.time()
-
         self.obj_prev_time = time.time()
         self.obj_fps_widget_label.clear()
         self.fps_widget_label.clear()
@@ -590,12 +588,6 @@ class init_layout(QWidget):
                 detect_result = self.detect_q.get()
                 detect_frame = self.convert_cv_qt(detect_result[0])  # detect_q 중 frame
                 self.vis1_ready = True
-
-                # if not self.video_sync:
-                #     object_detection_cur_time = time.time()
-                #     object_fps = 1 / (object_detection_cur_time - object_detection_prev_time)
-                #     object_detection_prev_time = object_detection_cur_time
-                #     self.object_fps_str = "%0.1f" % object_fps
 
                 while not self.vis2_ready and self.video_sync:
                     if self.vis1_ready and self.vis2_ready or self.vis_terminate:
