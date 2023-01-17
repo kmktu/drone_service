@@ -620,7 +620,8 @@ class init_layout(QWidget):
 
                 # object tracking에 맞게 클래스 카운트 변경
                 id_label_count_list = detect_result[1]
-                self.yolo_object_tracking_count(id_label_count_list=id_label_count_list)
+                if not self.vis_terminate:
+                    self.yolo_object_tracking_count(id_label_count_list=id_label_count_list)
                 time.sleep(0.015)
 
             else:
@@ -637,7 +638,8 @@ class init_layout(QWidget):
                 if type(self.recognize_frame) == dict:
                     ## 행동 confidence 값
                     action_count = self.recognize_frame
-                    self.cls_count(action_count)
+                    if not self.vis_terminate:
+                        self.cls_count(action_count)
                 else:
                     self.vis2_ready = True
 
