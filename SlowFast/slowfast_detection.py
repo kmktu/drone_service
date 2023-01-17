@@ -43,7 +43,7 @@ class SlowFastDetection():
         np.random.seed(self.cfg.RNG_SEED)
         torch.manual_seed(self.cfg.RNG_SEED)
         # Setup logging format.
-        logging.setup_logging(self.cfg.OUTPUT_DIR)
+        # logging.setup_logging(self.cfg.OUTPUT_DIR)
         logger.info("Run demo with config")
         # logger.info(self.cfg)
 
@@ -78,7 +78,7 @@ class SlowFastDetection():
         ), "Buffer size cannot be greater than half of sequence length."
 
         self.queue = Queue()
-        print("slowfast model init")
+        # print("slowfast model init")
 
     def video_path_input(self, input_cv_cap, video_path):
         self.input_cv_cap = input_cv_cap

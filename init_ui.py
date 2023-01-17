@@ -321,6 +321,7 @@ class init_layout(QWidget):
                 self.video_play = True
                 self.vis_terminate = False  # Sync 반복문 정지 플래그 비활성화
                 self.init_count()  # Count 0으로 초기화
+                self.slowfast_pause_stop_flag = False
 
                 # 모델 사용 시 Queue에 계속 쌓이게 되어 메모리 이슈가 발생
                 # 최대 사이즈를 slowfast에서 한꺼번에 나오는 64 프레임 을 기준으로 변경, 메모리 이슈에 의해 처리함
@@ -365,18 +366,22 @@ class init_layout(QWidget):
 
     def video_pause(self): # 영상 일시정지 함수
         self.video_play = False
-        # self.action_stop_pipe_parent.send("pause")
         self.model_init_log.setText("State : Pause Video")
 
     def video_stop(self): # 영상 초기화 함수
         # pipe 신호를 이용해서 프로세스 종료
-        if self.frame_reader_p2.is_alive():
-            self.action_stop_pipe_parent.send("stop")
-            while True:
-                if str(self.action_stop_pipe_parent.poll()):
-                    if self.action_stop_pipe_parent.recv() == "done":
-                        self.frame_reader_p2.terminate()
-                        break
+        self.video_play = True
+        self.action_stop_pipe_parent.send("stop")
+        while True:
+            if str(self.action_stop_pipe_parent.poll()):
+                flag = self.action_stop_pipe_parent.recv()
+                if flag == "done":
+                    self.frame_reader_p2.terminate()
+                    break
+                else:
+                    continue
+            else:
+                continue
 
         self.frame_q = None
         self.detect_q = None

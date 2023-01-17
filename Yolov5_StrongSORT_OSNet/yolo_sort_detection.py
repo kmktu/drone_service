@@ -206,15 +206,6 @@ class ObjectDetection():
 
             self.prev_frames[i] = self.curr_frames[i]
 
-            # Print total time (preprocessing + inference + NMS + tracking)
-        # LOGGER.info(
-        #     f"{'' if len(det) else '(no detections), '}{sum([dt.dt for dt in self.dt if hasattr(dt, 'dt')]) * 1E3:.1f}ms")
-        #
-        # # Print results
-        # t = tuple(x.t / self.seen * 1E3 for x in self.dt)  # speeds per image
-        # LOGGER.info(
-        #     f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS, %.1fms {self.tracking_method} update per image at shape {(1, 3, *self.imgsz)}' % t)
-
         if self.update:
             strip_optimizer(self.yolo_weights)  # update model (to fix SourceChangeWarning)
 
