@@ -369,39 +369,39 @@ class init_layout(QWidget):
                 executor3.submit(self.state_log)
 
     def video_pause(self): # 영상 일시정지 함수
-        self.video_play = False
-        self.model_init_log.setText("State : Pause Video")
+        if not self.vis_terminate:
+            self.video_play = False
+            self.model_init_log.setText("State : Pause Video")
 
     def video_stop(self): # 영상 초기화 함수
-        # pipe 신호를 이용해서 프로세스 종료
-        self.video_play = True
-        self.action_stop_pipe_parent.send("stop")
-        while True:
-            if str(self.action_stop_pipe_parent.poll()):
-                flag = self.action_stop_pipe_parent.recv()
-                if flag == "done":
-                    self.frame_reader_p2.terminate()
-                    break
+        if not self.vis_terminate:
+            # Sync 플래그 초기화
+            self.vis_terminate = True  # Sync 반복문 정지 플래그 활성화
+            self.vis1_ready = False
+            self.vis2_ready = False
+            # pipe 신호를 이용해서 프로세스 종료
+            self.video_play = True
+            self.action_stop_pipe_parent.send("stop")
+            while True:
+                if str(self.action_stop_pipe_parent.poll()):
+                    flag = self.action_stop_pipe_parent.recv()
+                    if flag == "done":
+                        self.frame_reader_p2.terminate()
+                        break
+                    else:
+                        continue
                 else:
                     continue
-            else:
-                continue
 
-        self.frame_q = None
-        self.detect_q = None
-        self.action_detect_q = None
-        self.video_load = False
-        self.video_play = False
-        if self.frame_reader_p.is_alive():
-            self.frame_reader_p.terminate()
-
-        # Sync 플래그 초기화
-        self.vis_terminate = True  # Sync 반복문 정지 플래그 활성화
-        self.vis1_ready = False
-        self.vis2_ready = False
-
-        self.model_init_log.setText("State : Stop Video")
-        self.drop_log()
+            self.frame_q = None
+            self.detect_q = None
+            self.action_detect_q = None
+            self.video_load = False
+            self.video_play = False
+            if self.frame_reader_p.is_alive():
+                self.frame_reader_p.terminate()
+            self.model_init_log.setText("State : Stop Video")
+            self.drop_log()
 
     # 그래프 드로잉 함수
     def draw_plot(self, x, y, width=0.4, brush=(180, 180, 180), pen=(100, 100, 100)):
